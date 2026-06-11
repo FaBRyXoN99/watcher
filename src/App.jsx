@@ -381,7 +381,7 @@ export default function App() {
     }
 
     saveTrackedItems(newItems);
-    setSelectedMedia(null); // close details modal
+    // Keep modal open after saving log
   };
 
   // Remove item from the tracker
@@ -389,7 +389,7 @@ export default function App() {
     const itemToRemove = trackedItems.find(i => i.id === id);
     const newItems = trackedItems.filter(i => i.id !== id);
     saveTrackedItems(newItems);
-    setSelectedMedia(null); // close details modal
+    // Keep modal open after removing log
     if (itemToRemove) {
       showNotification(`"${itemToRemove.title}" rimosso dai visti.`, "success");
     }

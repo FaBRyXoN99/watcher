@@ -528,6 +528,15 @@ export default function Discover({
         /* Home content */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
 
+          {/* 🎲 Cosa guardare stasera? */}
+          <RandomPickerCard
+            streamingMovies={streamingMovies}
+            streamingTv={streamingTv}
+            onSelect={handleMediaClick}
+            tmdbToken={tmdbToken}
+            loading={homeLoading}
+          />
+
           {/* Trending Movies */}
           {trendingMovies.length > 0 && (
             <div className="slider-section">
