@@ -5,6 +5,7 @@ import { SearchIcon } from './icons/SearchIcon';
 import { EyeIcon } from './icons/EyeIcon';
 import { BookmarkPlusIcon } from './icons/BookmarkPlusIcon';
 import { ArrowRightIcon } from './icons/ArrowRightIcon';
+import { RefreshCcwIcon } from './icons/RefreshCcwIcon';
 
 // ─── TMDB helpers ─────────────────────────────────────────────────────────────
 const TMDB_IMG = (path, size = 'w500') =>
@@ -247,11 +248,7 @@ function RandomPickerCard({ streamingMovies, streamingTv, onSelect, tmdbToken, l
           onMouseEnter={e => { e.currentTarget.style.background = 'rgba(44,242,255,0.2)'; }}
           onMouseLeave={e => { e.currentTarget.style.background = 'rgba(44,242,255,0.1)'; }}
         >
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="23 4 23 10 17 10"/>
-            <polyline points="1 20 1 14 7 14"/>
-            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-          </svg>
+          <RefreshCcwIcon size={13} />
           Rigenera
         </button>
       </div>
@@ -264,6 +261,324 @@ function RandomPickerCard({ streamingMovies, streamingTv, onSelect, tmdbToken, l
         <PosterHalf item={series} label="Serie TV" icon="📺" />
       </div>
     </div>
+  );
+}
+
+// ─── TMDB Genre IDs ───────────────────────────────────────────────────────────
+const MOVIE_GENRES = [
+  { id: 28, name: 'Azione' }, { id: 12, name: 'Avventura' }, { id: 16, name: 'Animazione' },
+  { id: 35, name: 'Commedia' }, { id: 80, name: 'Crime' }, { id: 99, name: 'Documentario' },
+  { id: 18, name: 'Dramma' }, { id: 14, name: 'Fantasy' }, { id: 27, name: 'Horror' },
+  { id: 9648, name: 'Mistero' }, { id: 10749, name: 'Romantico' }, { id: 878, name: 'Fantascienza' },
+  { id: 53, name: 'Thriller' }, { id: 10752, name: 'Guerra' }
+];
+const TV_GENRES = [
+  { id: 10759, name: 'Azione & Avventura' }, { id: 16, name: 'Animazione' }, { id: 35, name: 'Commedia' },
+  { id: 80, name: 'Crime' }, { id: 99, name: 'Documentario' }, { id: 18, name: 'Dramma' },
+  { id: 10765, name: 'Fantascienza & Fantasy' }, { id: 27, name: 'Horror' }, { id: 9648, name: 'Mistero' },
+  { id: 10766, name: 'Soap Opera' }, { id: 10767, name: 'Talk Show' }, { id: 10768, name: 'Guerra & Politica' }
+];
+
+const MOODS = [
+  { id: 'happy',     label: '😄 Felice',      movieGenres: [35, 16, 10749], tvGenres: [35, 16] },
+  { id: 'sad',       label: '😢 Malinconico', movieGenres: [18, 10749],     tvGenres: [18] },
+  { id: 'excited',   label: '🔥 Eccitato',    movieGenres: [28, 12, 878],   tvGenres: [10759, 10765] },
+  { id: 'scared',    label: '😱 Spaventato',  movieGenres: [27, 53, 9648],  tvGenres: [27, 9648] },
+  { id: 'relaxed',   label: '😌 Rilassato',   movieGenres: [99, 18, 36],    tvGenres: [99, 18] },
+  { id: 'romantic',  label: '❤️ Romantico',   movieGenres: [10749, 35],     tvGenres: [10766, 18] },
+  { id: 'curious',   label: '🤔 Curioso',     movieGenres: [99, 9648, 878], tvGenres: [99, 9648] },
+  { id: 'nostalgic', label: '🕰️ Nostalgico',  movieGenres: [36, 18],        tvGenres: [18, 80] },
+];
+
+// ─── Genre Picker Card ────────────────────────────────────────────────────────
+function GenrePickerCard({ tmdbToken, onSelect, showNotification }) {
+  const [showPopup, setShowPopup] = useState(false);
+  const [mediaType, setMediaType] = useState('movie');
+  const [selectedGenre, setSelectedGenre] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const genres = mediaType === 'movie' ? MOVIE_GENRES : TV_GENRES;
+
+  const handlePropose = async () => {
+    if (!selectedGenre) return;
+    setLoading(true);
+    setResult(null);
+    try {
+      let items = [];
+      if (tmdbToken) {
+        const page = Math.floor(Math.random() * 5) + 1;
+        const res = await fetch(
+          `https://api.themoviedb.org/3/discover/${mediaType}?with_genres=${selectedGenre}&language=it-IT&sort_by=popularity.desc&page=${page}`,
+          { headers: { Authorization: `Bearer ${tmdbToken}`, accept: 'application/json' } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          items = (data.results || []).filter(i => i.poster_path);
+        }
+      }
+      if (items.length === 0) {
+        showNotification('Nessun risultato trovato. Prova un altro genere.', 'error');
+        setLoading(false);
+        return;
+      }
+      const pick = items[Math.floor(Math.random() * Math.min(items.length, 10))];
+      setResult({
+        id: `${mediaType}-${pick.id}`,
+        tmdbId: pick.id,
+        title: pick.title || pick.name,
+        type: mediaType,
+        year: (pick.release_date || pick.first_air_date || '').split('-')[0],
+        imdbRating: pick.vote_average ? pick.vote_average.toFixed(1) : '0.0',
+        poster: pick.poster_path ? `https://image.tmdb.org/t/p/w342${pick.poster_path}` : '',
+        backdrop: pick.backdrop_path ? `https://image.tmdb.org/t/p/original${pick.backdrop_path}` : '',
+        description: pick.overview || '',
+        genres: [],
+      });
+    } catch { showNotification('Errore nel caricamento.', 'error'); }
+    setLoading(false);
+  };
+
+  return (
+    <>
+      {/* Mini card trigger */}
+      <button
+        onClick={() => setShowPopup(true)}
+        style={{
+          flex: 1, background: 'var(--bg-deep)', border: '1px solid var(--border-light)',
+          borderRadius: 'var(--border-radius-lg)', padding: '18px 16px', cursor: 'pointer',
+          textAlign: 'left', transition: 'var(--transition-smooth)', color: 'var(--text-white)'
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(138,20,255,0.5)'; e.currentTarget.style.background = 'rgba(138,20,255,0.06)'; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.background = 'var(--bg-deep)'; }}
+      >
+        <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🎭</div>
+        <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>Per genere</div>
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-grey)', lineHeight: 1.4 }}>Scegli un genere e ti proponiamo qualcosa da guardare</div>
+      </button>
+
+      {/* Popup */}
+      {showPopup && (
+        <div className="modal-overlay" onClick={() => { setShowPopup(false); setResult(null); }}>
+          <div className="modal-content" style={{ maxWidth: '480px' }} onClick={e => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={() => { setShowPopup(false); setResult(null); }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <div className="modal-body">
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', borderLeft: '3px solid rgba(138,20,255,0.8)', paddingLeft: '10px' }}>🎭 Proposta per genere</h2>
+
+              {/* Media type toggle */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                {['movie', 'tv'].map(t => (
+                  <button key={t} onClick={() => { setMediaType(t); setSelectedGenre(null); setResult(null); }}
+                    style={{
+                      flex: 1, padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                      border: mediaType === t ? '1px solid rgba(138,20,255,0.6)' : '1px solid var(--border-light)',
+                      background: mediaType === t ? 'rgba(138,20,255,0.15)' : 'var(--bg-input)',
+                      color: mediaType === t ? '#c084fc' : 'var(--text-grey)'
+                    }}>
+                    {t === 'movie' ? '🎬 Film' : '📺 Serie TV'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Genre grid */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
+                {genres.map(g => (
+                  <button key={g.id} onClick={() => setSelectedGenre(g.id)}
+                    style={{
+                      padding: '6px 14px', borderRadius: '20px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500,
+                      border: selectedGenre === g.id ? '1px solid rgba(138,20,255,0.7)' : '1px solid var(--border-light)',
+                      background: selectedGenre === g.id ? 'rgba(138,20,255,0.2)' : 'var(--bg-input)',
+                      color: selectedGenre === g.id ? '#c084fc' : 'var(--text-grey)',
+                      transition: 'all 0.15s ease'
+                    }}>
+                    {g.name}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={handlePropose}
+                disabled={!selectedGenre || loading}
+                className="btn-primary"
+                style={{ marginBottom: result ? '16px' : 0 }}
+              >
+                {loading ? 'Caricamento…' : '✨ Proponi'}
+              </button>
+
+              {/* Result */}
+              {result && (
+                <div
+                  onClick={() => { setShowPopup(false); onSelect(result); }}
+                  style={{
+                    display: 'flex', gap: '14px', alignItems: 'center', padding: '14px',
+                    background: 'var(--bg-input)', borderRadius: '12px', cursor: 'pointer',
+                    border: '1px solid var(--border-light)', transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(138,20,255,0.5)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
+                >
+                  {result.poster && <img src={result.poster} alt={result.title} style={{ width: 52, borderRadius: '8px', flexShrink: 0 }} />}
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '4px' }}>{result.title}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-grey)' }}>{result.year} · ★ {result.imdbRating}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'rgba(138,20,255,0.8)', marginTop: '4px', fontWeight: 600 }}>Tocca per aprire →</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
+// ─── Mood Picker Card ─────────────────────────────────────────────────────────
+function MoodPickerCard({ tmdbToken, onSelect, showNotification }) {
+  const [showPopup, setShowPopup] = useState(false);
+  const [mediaType, setMediaType] = useState('movie');
+  const [selectedMood, setSelectedMood] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const handlePropose = async () => {
+    if (!selectedMood) return;
+    const mood = MOODS.find(m => m.id === selectedMood);
+    if (!mood) return;
+    setLoading(true);
+    setResult(null);
+    try {
+      const genreIds = mediaType === 'movie' ? mood.movieGenres : mood.tvGenres;
+      const genreParam = genreIds.join('|');
+      let items = [];
+      if (tmdbToken) {
+        const page = Math.floor(Math.random() * 5) + 1;
+        const res = await fetch(
+          `https://api.themoviedb.org/3/discover/${mediaType}?with_genres=${genreParam}&language=it-IT&sort_by=popularity.desc&page=${page}`,
+          { headers: { Authorization: `Bearer ${tmdbToken}`, accept: 'application/json' } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          items = (data.results || []).filter(i => i.poster_path);
+        }
+      }
+      if (items.length === 0) {
+        showNotification('Nessun risultato trovato. Prova un altro mood.', 'error');
+        setLoading(false);
+        return;
+      }
+      const pick = items[Math.floor(Math.random() * Math.min(items.length, 10))];
+      setResult({
+        id: `${mediaType}-${pick.id}`,
+        tmdbId: pick.id,
+        title: pick.title || pick.name,
+        type: mediaType,
+        year: (pick.release_date || pick.first_air_date || '').split('-')[0],
+        imdbRating: pick.vote_average ? pick.vote_average.toFixed(1) : '0.0',
+        poster: pick.poster_path ? `https://image.tmdb.org/t/p/w342${pick.poster_path}` : '',
+        backdrop: pick.backdrop_path ? `https://image.tmdb.org/t/p/original${pick.backdrop_path}` : '',
+        description: pick.overview || '',
+        genres: [],
+      });
+    } catch { showNotification('Errore nel caricamento.', 'error'); }
+    setLoading(false);
+  };
+
+  return (
+    <>
+      {/* Mini card trigger */}
+      <button
+        onClick={() => setShowPopup(true)}
+        style={{
+          flex: 1, background: 'var(--bg-deep)', border: '1px solid var(--border-light)',
+          borderRadius: 'var(--border-radius-lg)', padding: '18px 16px', cursor: 'pointer',
+          textAlign: 'left', transition: 'var(--transition-smooth)', color: 'var(--text-white)'
+        }}
+        onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(44,242,255,0.5)'; e.currentTarget.style.background = 'rgba(44,242,255,0.04)'; }}
+        onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.background = 'var(--bg-deep)'; }}
+      >
+        <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🎭</div>
+        <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>Per mood</div>
+        <div style={{ fontSize: '0.78rem', color: 'var(--text-grey)', lineHeight: 1.4 }}>Dicci come ti senti e ti consigliamo il titolo perfetto</div>
+      </button>
+
+      {/* Popup */}
+      {showPopup && (
+        <div className="modal-overlay" onClick={() => { setShowPopup(false); setResult(null); }}>
+          <div className="modal-content" style={{ maxWidth: '480px' }} onClick={e => e.stopPropagation()}>
+            <button className="modal-close-btn" onClick={() => { setShowPopup(false); setResult(null); }}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+            <div className="modal-body">
+              <h2 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', borderLeft: '3px solid rgba(44,242,255,0.8)', paddingLeft: '10px' }}>✨ Proposta per mood</h2>
+
+              {/* Media type toggle */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                {['movie', 'tv'].map(t => (
+                  <button key={t} onClick={() => { setMediaType(t); setResult(null); }}
+                    style={{
+                      flex: 1, padding: '8px', borderRadius: '8px', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem',
+                      border: mediaType === t ? '1px solid rgba(44,242,255,0.6)' : '1px solid var(--border-light)',
+                      background: mediaType === t ? 'rgba(44,242,255,0.1)' : 'var(--bg-input)',
+                      color: mediaType === t ? 'var(--accent-cyan)' : 'var(--text-grey)'
+                    }}>
+                    {t === 'movie' ? '🎬 Film' : '📺 Serie TV'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Mood grid */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px' }}>
+                {MOODS.map(m => (
+                  <button key={m.id} onClick={() => setSelectedMood(m.id)}
+                    style={{
+                      padding: '8px 16px', borderRadius: '20px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500,
+                      border: selectedMood === m.id ? '1px solid rgba(44,242,255,0.7)' : '1px solid var(--border-light)',
+                      background: selectedMood === m.id ? 'rgba(44,242,255,0.12)' : 'var(--bg-input)',
+                      color: selectedMood === m.id ? 'var(--accent-cyan)' : 'var(--text-grey)',
+                      transition: 'all 0.15s ease'
+                    }}>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+
+              <button
+                onClick={handlePropose}
+                disabled={!selectedMood || loading}
+                className="btn-primary"
+                style={{ marginBottom: result ? '16px' : 0 }}
+              >
+                {loading ? 'Caricamento…' : '✨ Proponi'}
+              </button>
+
+              {/* Result */}
+              {result && (
+                <div
+                  onClick={() => { setShowPopup(false); onSelect(result); }}
+                  style={{
+                    display: 'flex', gap: '14px', alignItems: 'center', padding: '14px',
+                    background: 'var(--bg-input)', borderRadius: '12px', cursor: 'pointer',
+                    border: '1px solid var(--border-light)', transition: 'all 0.2s ease'
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.borderColor = 'rgba(44,242,255,0.5)'}
+                  onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-light)'}
+                >
+                  {result.poster && <img src={result.poster} alt={result.title} style={{ width: 52, borderRadius: '8px', flexShrink: 0 }} />}
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '1rem', marginBottom: '4px' }}>{result.title}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-grey)' }}>{result.year} · ★ {result.imdbRating}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', marginTop: '4px', fontWeight: 600 }}>Tocca per aprire →</div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -536,6 +851,12 @@ export default function Discover({
             tmdbToken={tmdbToken}
             loading={homeLoading}
           />
+
+          {/* Mini picker cards row */}
+          <div style={{ display: 'flex', gap: '12px' }}>
+            <GenrePickerCard tmdbToken={tmdbToken} onSelect={handleMediaClick} showNotification={showNotification} />
+            <MoodPickerCard  tmdbToken={tmdbToken} onSelect={handleMediaClick} showNotification={showNotification} />
+          </div>
 
           {/* Trending Movies */}
           {trendingMovies.length > 0 && (
