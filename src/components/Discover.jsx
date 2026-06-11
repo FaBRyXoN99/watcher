@@ -280,14 +280,22 @@ const TV_GENRES = [
 ];
 
 const MOODS = [
-  { id: 'happy',     label: '😄 Felice',      movieGenres: [35, 16, 10749], tvGenres: [35, 16] },
-  { id: 'sad',       label: '😢 Malinconico', movieGenres: [18, 10749],     tvGenres: [18] },
-  { id: 'excited',   label: '🔥 Eccitato',    movieGenres: [28, 12, 878],   tvGenres: [10759, 10765] },
-  { id: 'scared',    label: '😱 Spaventato',  movieGenres: [27, 53, 9648],  tvGenres: [27, 9648] },
-  { id: 'relaxed',   label: '😌 Rilassato',   movieGenres: [99, 18, 36],    tvGenres: [99, 18] },
-  { id: 'romantic',  label: '❤️ Romantico',   movieGenres: [10749, 35],     tvGenres: [10766, 18] },
-  { id: 'curious',   label: '🤔 Curioso',     movieGenres: [99, 9648, 878], tvGenres: [99, 9648] },
-  { id: 'nostalgic', label: '🕰️ Nostalgico',  movieGenres: [36, 18],        tvGenres: [18, 80] },
+  // Felice → Commedia, Animazione, Famiglia: leggeri e spensierati
+  { id: 'happy',     label: '😄 Felice',      movieGenres: [35, 16, 10751], tvGenres: [35, 16, 10751], sortBy: 'popularity.desc',    minRating: 6.5 },
+  // Malinconico → Dramma intenso e romantico: film da piangere
+  { id: 'sad',       label: '😢 Malinconico', movieGenres: [18, 10749],     tvGenres: [18],            sortBy: 'vote_average.desc',  minRating: 7.5 },
+  // Eccitato → Azione, Avventura, Fantascienza: adrenalina pura
+  { id: 'excited',   label: '🔥 Eccitato',    movieGenres: [28, 12, 878],   tvGenres: [10759, 10765],  sortBy: 'popularity.desc',    minRating: 6.0 },
+  // Spaventato → Horror e Thriller: tensione e paura
+  { id: 'scared',    label: '😱 Spaventato',  movieGenres: [27, 53],        tvGenres: [27, 9648],      sortBy: 'popularity.desc',    minRating: 6.0 },
+  // Rilassato → Documentari, Animazione, Fantasy: atmosfera tranquilla
+  { id: 'relaxed',   label: '😌 Rilassato',   movieGenres: [99, 16, 14],    tvGenres: [99, 16],        sortBy: 'vote_average.desc',  minRating: 7.0 },
+  // Romantico → Romance e Commedia romantica: cuore al centro
+  { id: 'romantic',  label: '❤️ Romantico',   movieGenres: [10749, 35],     tvGenres: [18, 10766],     sortBy: 'vote_average.desc',  minRating: 7.0 },
+  // Curioso → Documentari, Mistero, Fantascienza: mente aperta
+  { id: 'curious',   label: '🤔 Curioso',     movieGenres: [99, 9648, 878], tvGenres: [99, 9648, 10765], sortBy: 'vote_average.desc', minRating: 7.0 },
+  // Nostalgico → Storia, Dramma storico, Western: epoche passate
+  { id: 'nostalgic', label: '🕰️ Nostalgico',  movieGenres: [36, 18, 37],    tvGenres: [18, 80],        sortBy: 'vote_average.desc',  minRating: 7.0 },
 ];
 
 // ─── Genre Picker Card ────────────────────────────────────────────────────────
@@ -452,11 +460,13 @@ function MoodPickerCard({ tmdbToken, onSelect, showNotification }) {
     try {
       const genreIds = mediaType === 'movie' ? mood.movieGenres : mood.tvGenres;
       const genreParam = genreIds.join('|');
+      const sortBy   = mood.sortBy   || 'popularity.desc';
+      const minRating = mood.minRating || 6.0;
       let items = [];
       if (tmdbToken) {
         const page = Math.floor(Math.random() * 5) + 1;
         const res = await fetch(
-          `https://api.themoviedb.org/3/discover/${mediaType}?with_genres=${genreParam}&language=it-IT&sort_by=popularity.desc&page=${page}`,
+          `https://api.themoviedb.org/3/discover/${mediaType}?with_genres=${genreParam}&language=it-IT&sort_by=${sortBy}&vote_average.gte=${minRating}&vote_count.gte=100&page=${page}`,
           { headers: { Authorization: `Bearer ${tmdbToken}`, accept: 'application/json' } }
         );
         if (res.ok) {
@@ -499,7 +509,7 @@ function MoodPickerCard({ tmdbToken, onSelect, showNotification }) {
         onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(44,242,255,0.5)'; e.currentTarget.style.background = 'rgba(44,242,255,0.04)'; }}
         onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.background = 'var(--bg-deep)'; }}
       >
-        <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🎭</div>
+        <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>🧐</div>
         <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: '4px' }}>Per mood</div>
         <div style={{ fontSize: '0.78rem', color: 'var(--text-grey)', lineHeight: 1.4 }}>Dicci come ti senti e ti consigliamo il titolo perfetto</div>
       </button>
