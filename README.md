@@ -1,16 +1,27 @@
-# React + Vite
+# Watcher - Films & TV Series Collection Manager
+Benvenuto in Watcher, il gestionale definitivo per tenere traccia di tutto ciò che hai visto, stai vedendo e vorresti guardare!
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+# 🎬 Caratteristiche Principali
+Visualizzazione Flessibile: Scegli tra modalità Griglia, Lista o Tabella.
+Statistiche Avanzate: Analizza la tua collezione con grafici dinamici su editori, target, spese e andamento nel tempo.
+Sincronizzazione Cloud: Integrazione completa con Google Drive per dati e copertine.
+Multi-Piattaforma: Funziona su PC (Windows/Mac/Linux) e Mobile via browser (PWA).
+Esportazione Grafica: Genera report HTML interattivi da condividere o conservare.
 
-Currently, two official plugins are available:
+# 🍿 Utilizzo su Smartphone/Tablet
+Per avere Watcher sempre con te:
+Apri la versione hostata da GitHub (Link).
+Seleziona "Aggiungi a Home" dal menu del browser per installarla come App. Nota sui Dati: Quando usi la versione su GitHub Pages, i dati sono separati da quelli che hai sul PC (perché ogni browser ha la sua memoria locale). Ti basterà collegare importare il backup locale o di Google Drive dalle impostazioni!
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+💾 Gestione Dati e Backup
+L'app salva i dati localmente nel browser (manga-box-db).
 
-## React Compiler
+Per cambiare dispositivo: Esporta il backup .json o .html dalle Impostazioni e importalo sul nuovo dispositivo.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Backup cloud con Google Drive: Vai in Impostazioni ed esegui l'accesso a Google. Una volta connesso, potrai caricare o scaricare i tuoi dati e le tue copertine con un clic. I dati verranno salvati sul tuo archivio G-Drive.
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+⌨️ Scorciatoie Rapide
+Ctrl + M: Cambia visualizzazione (Griglia, Lista, Tabella).
+Ctrl + L: Vai direttamente alla barra di ricerca.
+Ctrl + 1-5: Naviga rapidamente tra le tab principali.
+Per segnalare Bug o altro, su Telegram: @mamboleiro
