@@ -323,6 +323,60 @@ function CreateListModal({ onSave, onClose }) {
   );
 }
 
+// ─── Collection Details sub-page ──────────────────────────────────────────────
+function CollectionDetailsPage({ collection, onBack, onSelectCard }) {
+  if (!collection) return null;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px' }}>
+        <button onClick={onBack}
+          style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-light)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-white)' }}>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <polyline points="15 18 9 12 15 6"/>
+          </svg>
+        </button>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+          <span style={{ marginRight: '10px' }}>{collection.emoji || '📋'}</span>
+          {collection.name}
+        </h1>
+      </div>
+
+      {collection.items && collection.items.length > 0 ? (
+        <div className="media-grid">
+          {collection.items.map(item => (
+            <div className="media-card" key={item.id} onClick={() => onSelectCard(item)}>
+              <div className="card-image-container">
+                <img 
+                  src={item.poster || 'https://via.placeholder.com/500x750?text=No+Poster'} 
+                  alt={item.title} 
+                  className="card-image"
+                  onError={(e) => { e.target.src = 'https://via.placeholder.com/500x750?text=No+Poster'; }}
+                />
+                <div className="rating-pill" style={{ color: 'var(--text-white)' }}>
+                  <span>★ {item.imdbRating || 'N/D'}</span>
+                </div>
+              </div>
+              <div className="card-info">
+                <div className="card-title" title={item.title}>{item.title}</div>
+                <div className="card-meta">
+                  <span>{item.type === 'movie' ? 'Film' : 'Serie TV'}</span>
+                  {item.year && <span>{item.year}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)' }}>
+          <p style={{ fontSize: '2rem', marginBottom: '12px' }}>{collection.emoji || '📋'}</p>
+          <p>La collezione è vuota.</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Profile component ───────────────────────────────────────────────────
 export default function Profile({
   profile,
@@ -330,8 +384,12 @@ export default function Profile({
   onSwitchProfile,
   trackedItems,
   onSelectCard,
+  collections,
+  onSaveCollections,
   tmdbToken,
   onSaveToken,
+  themeColor,
+  onSaveThemeColor,
   onImportData,
   onResetData,
   showNotification,
@@ -353,6 +411,7 @@ export default function Profile({
 }) {
   // Sub-page state: null = home profile, 'stats' = full stats, 'settings' = settings
   const [subPage, setSubPage] = useState(initialSubPage || null);
+  const [activeCollectionId, setActiveCollectionId] = useState(null);
 
   useEffect(() => {
     if (initialSubPage !== undefined) {
@@ -361,12 +420,6 @@ export default function Profile({
   }, [initialSubPage]);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showCreateListModal, setShowCreateListModal] = useState(false);
-
-  // Custom lists
-  const [customLists, setCustomLists] = useState([
-    { id: 'list-1', name: 'Da guardare presto', desc: 'Priorità alta', emoji: '🔥', items: [] },
-    { id: 'list-2', name: 'Preferiti di sempre', desc: 'I miei capolavori', emoji: '⭐', items: [] }
-  ]);
 
   // Quick stats
   const movies = trackedItems.filter(i => i.type === 'movie');
@@ -398,7 +451,8 @@ export default function Profile({
   };
 
   const handleCreateList = (list) => {
-    setCustomLists(prev => [list, ...prev]);
+    const updatedCollections = [list, ...(collections || [])];
+    onSaveCollections(updatedCollections);
     showNotification(`Lista "${list.name}" creata!`, 'success');
   };
 
@@ -425,6 +479,8 @@ export default function Profile({
           onSaveProfile={onSaveProfile}
           tmdbToken={tmdbToken}
           onSaveToken={onSaveToken}
+          themeColor={themeColor}
+          onSaveThemeColor={onSaveThemeColor}
           trackedItems={trackedItems}
           onImportData={onImportData}
           onResetData={onResetData}
@@ -445,6 +501,18 @@ export default function Profile({
           onSwitchProfile={onSwitchProfile}
         />
       </div>
+    );
+  }
+
+  // ── Collection details page ────────────────────────────────────────────────
+  if (subPage === 'collection_details') {
+    const col = collections?.find(c => c.id === activeCollectionId);
+    return (
+      <CollectionDetailsPage 
+        collection={col} 
+        onBack={() => { setSubPage(null); setActiveCollectionId(null); }} 
+        onSelectCard={onSelectCard} 
+      />
     );
   }
 
@@ -618,17 +686,19 @@ export default function Profile({
         </div>
 
         {/* Lists */}
-        {customLists.length === 0 ? (
+        {(!collections || collections.length === 0) ? (
           <div style={{ padding: '28px', textAlign: 'center', color: 'var(--text-grey)' }}>
             <p style={{ marginBottom: '8px', fontSize: '1.5rem' }}>📋</p>
             <p style={{ fontSize: '0.9rem' }}>Nessuna lista creata. Premi + per iniziare.</p>
           </div>
         ) : (
-          customLists.map((list, i) => (
-            <div key={list.id} style={{
+          collections.map((list, i) => (
+            <div key={list.id} 
+              onClick={() => { setActiveCollectionId(list.id); setSubPage('collection_details'); }}
+              style={{
               display: 'flex', alignItems: 'center', gap: '14px',
               padding: '14px 20px',
-              borderBottom: i < customLists.length - 1 ? '1px solid var(--border-light)' : 'none',
+              borderBottom: i < collections.length - 1 ? '1px solid var(--border-light)' : 'none',
               cursor: 'pointer', transition: 'var(--transition-smooth)'
             }}>
               <div style={{

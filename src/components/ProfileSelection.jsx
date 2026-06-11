@@ -506,8 +506,8 @@ export default function ProfileSelection({
             </p>
 
             <div style={{
-              background: googleClientId ? 'rgba(44, 247, 124, 0.08)' : 'rgba(255, 153, 0, 0.08)',
-              border: `1px solid ${googleClientId ? 'rgba(44, 247, 124, 0.2)' : 'rgba(255, 153, 0, 0.2)'}`,
+              background: googleClientId ? 'rgba(62, 238, 252, 0.08)' : 'rgba(255, 153, 0, 0.08)',
+              border: `1px solid ${googleClientId ? 'rgba(62, 238, 252, 0.2)' : 'rgba(255, 153, 0, 0.2)'}`,
               borderRadius: '8px',
               padding: '10px 14px',
               fontSize: '0.85rem',

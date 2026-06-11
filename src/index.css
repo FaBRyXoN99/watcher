@@ -11,8 +11,9 @@
   --border-glow: rgba(44, 242, 255, 0.2);
   
   /* Mockup Accent Colors */
-  --accent-green: #2cf77c;
-  --accent-cyan: #2cf2ff;
+  --theme-color: #3eeefc;
+  --accent-green: var(--theme-color);
+  --accent-cyan: var(--theme-color);
   --accent-blue: #2c71ff;
   --accent-purple: #8a14ff;
   --accent-red: #ff0300;
@@ -140,13 +141,13 @@ body {
 }
 
 .nav-item.active {
-  background: rgba(44, 247, 124, 0.12); /* Sfondo capsula verde traslucido */
+  background: rgba(62, 238, 252, 0.12); /* Sfondo capsula verde traslucido */
   color: var(--accent-green) !important;
 }
 
 .nav-item.active svg {
   stroke: var(--accent-green);
-  filter: drop-shadow(0 0 5px rgba(44, 247, 124, 0.4));
+  filter: drop-shadow(0 0 5px rgba(62, 238, 252, 0.4));
 }
 
 /* MAIN VIEWPORT */
@@ -477,7 +478,7 @@ body {
 .wide-media-card:hover {
   transform: translateY(-4px);
   border-color: var(--accent-green);
-  box-shadow: 0 8px 20px rgba(44, 247, 124, 0.18);
+  box-shadow: 0 8px 20px rgba(62, 238, 252, 0.18);
 }
 
 .wide-card-image {
@@ -564,7 +565,7 @@ body {
 .poster-slider-card:hover .poster-slider-img-wrapper {
   transform: translateY(-6px);
   border-color: var(--accent-green);
-  box-shadow: 0 10px 25px rgba(44, 247, 124, 0.18);
+  box-shadow: 0 10px 25px rgba(62, 238, 252, 0.18);
 }
 
 .poster-slider-img-wrapper img {
@@ -729,17 +730,17 @@ body {
 }
 
 .card-action-btn.active-watchlist {
-  background: rgba(44, 247, 124, 0.2);
+  background: rgba(62, 238, 252, 0.2);
   border-color: var(--accent-green);
   color: var(--accent-green);
-  box-shadow: 0 0 8px rgba(44, 247, 124, 0.3);
+  box-shadow: 0 0 8px rgba(62, 238, 252, 0.3);
 }
 
 .card-action-btn.active-watched {
-  background: rgba(44, 247, 124, 0.2);
+  background: rgba(62, 238, 252, 0.2);
   border-color: var(--accent-green);
   color: var(--accent-green);
-  box-shadow: 0 0 8px rgba(44, 247, 124, 0.3);
+  box-shadow: 0 0 8px rgba(62, 238, 252, 0.3);
 }
 
 .card-action-btn svg {
@@ -1374,7 +1375,7 @@ body {
 }
 .lp-platform-active {
   border-color: var(--accent-green) !important;
-  background: rgba(44, 247, 124, 0.08) !important;
+  background: rgba(62, 238, 252, 0.08) !important;
 }
 
 .lp-platform-name {
@@ -1406,7 +1407,7 @@ body {
 }
 .lp-date-input:focus {
   border-color: var(--accent-green);
-  background: rgba(44, 247, 124, 0.04);
+  background: rgba(62, 238, 252, 0.04);
 }
 
 /* Popup action buttons */
@@ -1454,8 +1455,8 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: rgba(44, 247, 124, 0.08);
-  border: 1px solid rgba(44, 247, 124, 0.25);
+  background: rgba(62, 238, 252, 0.08);
+  border: 1px solid rgba(62, 238, 252, 0.25);
   border-radius: 14px;
   padding: 10px 16px;
   margin-bottom: 22px;
@@ -1465,8 +1466,8 @@ body {
   transition: var(--transition-smooth);
 }
 .dm-watched-bar:hover {
-  background: rgba(44, 247, 124, 0.14);
-  border-color: rgba(44, 247, 124, 0.4);
+  background: rgba(62, 238, 252, 0.14);
+  border-color: rgba(62, 238, 252, 0.4);
 }
 .dm-wb-stars {
   font-size: 0.85rem;
@@ -1718,7 +1719,7 @@ body {
   border-color: rgba(255,255,255,0.28);
 }
 .dm-add-btn.dm-add-btn-active {
-  background: rgba(44, 247, 124, 0.14);
+  background: rgba(62, 238, 252, 0.14);
   border-color: var(--accent-green);
   color: var(--accent-green);
 }
@@ -1743,7 +1744,7 @@ body {
   border-color: rgba(255,255,255,0.28);
 }
 .dm-eye-btn.dm-eye-btn-active {
-  background: rgba(44, 247, 124, 0.14);
+  background: rgba(62, 238, 252, 0.14);
   border-color: var(--accent-green);
   color: var(--accent-green);
 }
@@ -2827,7 +2828,7 @@ body {
   transition: all 0.2s ease;
 }
 .dm-season-watched-btn:hover {
-  background: rgba(44, 247, 124, 0.1);
+  background: rgba(62, 238, 252, 0.1);
   border-color: var(--accent-green);
   color: var(--accent-green);
 }
@@ -2871,7 +2872,7 @@ body {
 .tv-episode-card:hover .tv-episode-thumb-wrapper {
   transform: translateY(-4px);
   border-color: var(--accent-green);
-  box-shadow: 0 6px 15px rgba(44, 247, 124, 0.15);
+  box-shadow: 0 6px 15px rgba(62, 238, 252, 0.15);
 }
 .tv-episode-thumb {
   width: 100%;
@@ -2995,7 +2996,7 @@ body {
 }
 .confirm-btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(44, 247, 124, 0.25);
+  box-shadow: 0 4px 12px rgba(62, 238, 252, 0.25);
 }
 .confirm-btn-secondary {
   background: rgba(255, 255, 255, 0.06);
@@ -3151,4 +3152,9 @@ body {
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
+}
+
+.dm-collection-btn:hover {
+  border-color: var(--accent-green) !important;
+  box-shadow: 0 0 8px rgba(62, 238, 252, 0.2);
 }

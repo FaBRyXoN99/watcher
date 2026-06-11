@@ -40,6 +40,8 @@ export default function Settings({
   onSaveProfile,
   tmdbToken, 
   onSaveToken, 
+  themeColor,
+  onSaveThemeColor,
   trackedItems, 
   onImportData, 
   onResetData, 
@@ -436,6 +438,45 @@ export default function Settings({
         </div>
       </div>
 
+      {/* Theme Color Selection Panel */}
+      <div className="settings-section">
+        <h2>Colore Principale (Tema)</h2>
+        <p className="settings-description">
+          Scegli il colore di accento principale che verrà utilizzato per i bottoni, i link e le icone attive.
+        </p>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap' }}>
+          {[
+            { label: 'Celeste', value: '#3eeefc' },
+            { label: 'Blu', value: '#2c71ff' },
+            { label: 'Viola', value: '#8a14ff' },
+            { label: 'Rosa', value: '#ff2c9c' },
+            { label: 'Rosso', value: '#ff0300' },
+            { label: 'Arancione', value: '#ff9f0a' },
+            { label: 'Giallo', value: '#fcf403' },
+            { label: 'Verde', value: '#3efc81' }
+          ].map(colorOption => (
+            <button
+              key={colorOption.value}
+              onClick={() => {
+                onSaveThemeColor(colorOption.value);
+                showNotification(`Colore tema impostato su ${colorOption.label}`, 'success');
+              }}
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: '50%',
+                background: colorOption.value,
+                border: themeColor === colorOption.value ? '3px solid #fff' : '2px solid transparent',
+                cursor: 'pointer',
+                boxShadow: themeColor === colorOption.value ? `0 0 15px ${colorOption.value}80` : 'none',
+                transition: 'var(--transition-smooth)'
+              }}
+              title={colorOption.label}
+            />
+          ))}
+        </div>
+      </div>
+
       {/* Google Link Panel */}
       <div className="settings-section">
         <h2>Account Collegati</h2>
@@ -640,8 +681,8 @@ export default function Settings({
                 disabled={googleSyncStatus === 'syncing'}
                 onClick={() => onSaveToGoogleDrive()}
                 style={{
-                  background: 'rgba(44, 247, 124, 0.1)',
-                  borderColor: 'rgba(44, 247, 124, 0.3)',
+                  background: 'rgba(62, 238, 252, 0.1)',
+                  borderColor: 'rgba(62, 238, 252, 0.3)',
                   color: 'var(--accent-green)'
                 }}
               >

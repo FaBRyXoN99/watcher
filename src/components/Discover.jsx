@@ -245,10 +245,16 @@ function RandomPickerCard({ streamingMovies, streamingTv, onSelect, tmdbToken, l
             color: 'var(--accent-cyan)', borderRadius: '20px', padding: '6px 14px',
             fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer', transition: 'var(--transition-smooth)'
           }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(44,242,255,0.2)'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(44,242,255,0.1)'; }}
+          onMouseEnter={e => { 
+            e.currentTarget.style.background = 'rgba(44,242,255,0.2)';
+            refreshIconRef.current?.startAnimation();
+          }}
+          onMouseLeave={e => { 
+            e.currentTarget.style.background = 'rgba(44,242,255,0.1)';
+            refreshIconRef.current?.stopAnimation();
+          }}
         >
-          <RefreshCcwIcon size={13} />
+          <RefreshCcwIcon ref={refreshIconRef} size={13} />
           Rigenera
         </button>
       </div>
@@ -766,8 +772,13 @@ export default function Discover({
           position: 'absolute', 
           left: '50%', 
           transform: 'translateX(-50%)', 
-          fontSize: '1.35rem', 
-          fontWeight: 700, 
+          fontSize: '1.75rem', 
+          fontWeight: 800, 
+          background: 'linear-gradient(90deg, var(--theme-color, #3eeefc), var(--accent-blue, #2c71ff))',
+          WebkitBackgroundClip: 'text',
+          WebkitTextFillColor: 'transparent',
+          backgroundClip: 'text',
+          color: 'transparent',
           margin: 0, 
           letterSpacing: '-0.3px', 
           whiteSpace: 'nowrap',

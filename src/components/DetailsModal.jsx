@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { BookmarkPlusIcon } from './icons/BookmarkPlusIcon';
+import { BookmarkCheckIcon } from './icons/BookmarkCheckIcon';
+import { BookmarkXIcon } from './icons/BookmarkXIcon';
+import { FolderKanbanIcon } from './icons/FolderKanbanIcon';
 import { EyeIcon } from './icons/EyeIcon';
 
 // ── Platform registry ─────────────────────────────────────────────────────────
@@ -205,11 +208,58 @@ function mapSimilar(raw, type) {
   };
 }
 
+// ─── Details Watchlist Button ────────────────────────────────────────────────
+function DetailsWatchlistButton({ inWatchlist, onAdd, onRemove }) {
+  const [isRemoving, setIsRemoving] = useState(false);
+
+  const handleRemove = () => {
+    setIsRemoving(true);
+    onRemove();
+    setTimeout(() => {
+      setIsRemoving(false);
+    }, 800);
+  };
+
+  if (isRemoving) {
+    return (
+      <button 
+        className="dm-add-btn" 
+        style={{
+          background: 'rgba(255, 3, 0, 0.2)',
+          borderColor: 'var(--accent-red)',
+          color: 'var(--accent-red)',
+          boxShadow: '0 0 8px rgba(255, 3, 0, 0.4)'
+        }}
+        onClick={handleRemove}
+      >
+        <BookmarkXIcon size={15} />
+        Rimosso
+      </button>
+    );
+  }
+
+  if (inWatchlist) {
+    return (
+      <button className="dm-add-btn dm-add-btn-active" onClick={handleRemove}>
+        <BookmarkCheckIcon size={15} />
+        Aggiunto
+      </button>
+    );
+  }
+
+  return (
+    <button className="dm-add-btn" onClick={onAdd}>
+      <BookmarkPlusIcon size={15} />
+      Aggiungi
+    </button>
+  );
+}
+
 // ── Main DetailsModal ─────────────────────────────────────────────────────────
 export default function DetailsModal({
   item, onClose, onSave, onRemove, loggedInfo,
   inWatchlist, onAddToWatchlist, onRemoveFromWatchlist,
-  onSelectMedia, tmdbToken
+  onSelectMedia, tmdbToken, onOpenCollectionModal
 }) {
   const [showLogPopup, setShowLogPopup] = useState(false);
   const [descExpanded, setDescExpanded] = useState(false);
@@ -600,19 +650,34 @@ export default function DetailsModal({
           {/* ── BODY ── */}
           <div className="dm-body">
 
-            {/* Action buttons */}
+             {/* Action buttons */}
             <div className="dm-actions-row">
-              {inWatchlist ? (
-                <button className="dm-add-btn dm-add-btn-active" onClick={() => onRemoveFromWatchlist(item.id)}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-                  Aggiunto
-                </button>
-              ) : (
-                <button className="dm-add-btn" onClick={() => onAddToWatchlist(item)}>
-                  <BookmarkPlusIcon size={15} />
-                  Aggiungi
-                </button>
-              )}
+              <DetailsWatchlistButton 
+                inWatchlist={inWatchlist} 
+                onAdd={() => onAddToWatchlist(item)} 
+                onRemove={() => onRemoveFromWatchlist(item.id)} 
+              />
+              <button 
+                className="dm-collection-btn" 
+                onClick={() => onOpenCollectionModal(item)}
+                style={{
+                  background: 'var(--bg-input)',
+                  border: '1.5px solid var(--border-light)',
+                  color: 'var(--text-white)',
+                  borderRadius: '12px',
+                  padding: '10px 18px',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  cursor: 'pointer',
+                  transition: 'var(--transition-smooth)'
+                }}
+              >
+                <FolderKanbanIcon size={15} />
+                Collezione
+              </button>
               <button className={`dm-eye-btn ${loggedInfo ? 'dm-eye-btn-active' : ''}`}
                 onClick={() => setShowLogPopup(true)} title={loggedInfo ? 'Visto · modifica' : 'Segna come visto'}>
                 <EyeIcon size={18} />

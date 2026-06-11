@@ -5,6 +5,7 @@ import MyList from './components/MyList';
 import Profile from './components/Profile';
 import DetailsModal from './components/DetailsModal';
 import ProfileSelection from './components/ProfileSelection';
+import AddToCollectionModal from './components/AddToCollectionModal';
 import { syncSaveProfileData, syncLoadProfileData } from './googleDriveHelper';
 import { HomeIcon } from './components/icons/HomeIcon';
 import { TimerIcon } from './components/icons/TimerIcon';
@@ -17,6 +18,8 @@ export default function App() {
   const [activeProfile, setActiveProfile] = useState(null);
   const [trackedItems, setTrackedItems] = useState([]);
   const [watchlist, setWatchlist] = useState([]);
+  const [collections, setCollections] = useState([]);
+  const [collectionModalMedia, setCollectionModalMedia] = useState(null);
   const [tmdbToken, setTmdbToken] = useState('');
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [notification, setNotification] = useState(null);
@@ -25,6 +28,11 @@ export default function App() {
   const [googleAccessToken, setGoogleAccessToken] = useState('');
   const [googleSyncStatus, setGoogleSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'success' | 'error'
   const [lastGoogleSync, setLastGoogleSync] = useState('');
+  const [themeColor, setThemeColor] = useState('#3eeefc');
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--theme-color', themeColor);
+  }, [themeColor]);
   const [statsConfig, setStatsConfig] = useState([
     { id: 'totalItems', label: 'Visti Totali', visible: true },
     { id: 'avgRating', label: 'Voto Medio', visible: true },
@@ -194,6 +202,22 @@ export default function App() {
     } else {
       setLastGoogleSync('');
     }
+
+    // 6. Collections
+    const storedCollections = localStorage.getItem(`watcher_profile_${profileId}_collections`);
+    if (storedCollections) {
+      setCollections(JSON.parse(storedCollections));
+    } else {
+      setCollections([]);
+    }
+
+    // 7. Theme Color
+    const storedTheme = localStorage.getItem(`watcher_profile_${profileId}_theme_color`);
+    if (storedTheme) {
+      setThemeColor(storedTheme);
+    } else {
+      setThemeColor('#3eeefc');
+    }
   };
 
   // Save tracked items to localStorage whenever they change
@@ -209,6 +233,22 @@ export default function App() {
     setWatchlist(items);
     if (activeProfile) {
       localStorage.setItem(`watcher_profile_${activeProfile.id}_watchlist`, JSON.stringify(items));
+    }
+  };
+
+  // Save collections to localStorage
+  const saveCollections = (items) => {
+    setCollections(items);
+    if (activeProfile) {
+      localStorage.setItem(`watcher_profile_${activeProfile.id}_collections`, JSON.stringify(items));
+    }
+  };
+
+  // Save Theme Color
+  const handleSaveThemeColor = (color) => {
+    setThemeColor(color);
+    if (activeProfile) {
+      localStorage.setItem(`watcher_profile_${activeProfile.id}_theme_color`, color);
     }
   };
 
@@ -425,7 +465,9 @@ export default function App() {
           tracked_items: trackedItems,
           watchlist: watchlist,
           stats_config: statsConfig,
-          tmdb_token: tmdbToken
+          tmdb_token: tmdbToken,
+          collections: collections,
+          theme_color: themeColor
         };
         const res = await syncSaveProfileData('', '', activeProfile, backupData);
         setGoogleSyncStatus('idle');
@@ -452,7 +494,9 @@ export default function App() {
         tracked_items: trackedItems,
         watchlist: watchlist,
         stats_config: statsConfig,
-        tmdb_token: tmdbToken
+        tmdb_token: tmdbToken,
+        collections: collections,
+        theme_color: themeColor
       };
       const res = await syncSaveProfileData(googleClientId, token, activeProfile, backupData);
       setGoogleSyncStatus('idle');
@@ -489,6 +533,14 @@ export default function App() {
           if (res.data.tmdb_token !== undefined) {
             setTmdbToken(res.data.tmdb_token);
             localStorage.setItem(`watcher_profile_${activeProfile.id}_tmdb_token`, res.data.tmdb_token);
+          }
+          if (res.data.collections) {
+            setCollections(res.data.collections);
+            localStorage.setItem(`watcher_profile_${activeProfile.id}_collections`, JSON.stringify(res.data.collections));
+          }
+          if (res.data.theme_color) {
+            setThemeColor(res.data.theme_color);
+            localStorage.setItem(`watcher_profile_${activeProfile.id}_theme_color`, res.data.theme_color);
           }
           showNotification("Backup ripristinato da Google Drive (Sandbox)!", "success");
         }
@@ -527,6 +579,14 @@ export default function App() {
           setTmdbToken(res.data.tmdb_token);
           localStorage.setItem(`watcher_profile_${activeProfile.id}_tmdb_token`, res.data.tmdb_token);
         }
+        if (res.data.collections) {
+          setCollections(res.data.collections);
+          localStorage.setItem(`watcher_profile_${activeProfile.id}_collections`, JSON.stringify(res.data.collections));
+        }
+        if (res.data.theme_color) {
+          setThemeColor(res.data.theme_color);
+          localStorage.setItem(`watcher_profile_${activeProfile.id}_theme_color`, res.data.theme_color);
+        }
         showNotification("Backup caricato da Google Drive con successo!", "success");
       }
     } catch (err) {
@@ -542,9 +602,13 @@ export default function App() {
     localStorage.removeItem(`watcher_profile_${activeProfile.id}_tracked_items`);
     localStorage.removeItem(`watcher_profile_${activeProfile.id}_watchlist`);
     localStorage.removeItem(`watcher_profile_${activeProfile.id}_tmdb_token`);
+    localStorage.removeItem(`watcher_profile_${activeProfile.id}_collections`);
+    localStorage.removeItem(`watcher_profile_${activeProfile.id}_theme_color`);
     setTrackedItems([]);
     setWatchlist([]);
     setTmdbToken('');
+    setCollections([]);
+    setThemeColor('#3eeefc');
     showNotification("Profilo ripristinato ai valori di fabbrica.", "success");
   };
 
@@ -571,7 +635,9 @@ export default function App() {
           tracked_items: JSON.parse(localStorage.getItem(`watcher_profile_${pId}_tracked_items`) || '[]'),
           watchlist: JSON.parse(localStorage.getItem(`watcher_profile_${pId}_watchlist`) || '[]'),
           stats_config: JSON.parse(localStorage.getItem(`watcher_profile_${pId}_stats_config`) || 'null'),
-          tmdb_token: localStorage.getItem(`watcher_profile_${pId}_tmdb_token`) || ''
+          tmdb_token: localStorage.getItem(`watcher_profile_${pId}_tmdb_token`) || '',
+          collections: JSON.parse(localStorage.getItem(`watcher_profile_${pId}_collections`) || '[]'),
+          theme_color: localStorage.getItem(`watcher_profile_${pId}_theme_color`) || '#3eeefc'
         };
       });
 
@@ -615,6 +681,12 @@ export default function App() {
           }
           if (data.tmdb_token !== undefined) {
             localStorage.setItem(`watcher_profile_${pId}_tmdb_token`, data.tmdb_token);
+          }
+          if (data.collections) {
+            localStorage.setItem(`watcher_profile_${pId}_collections`, JSON.stringify(data.collections));
+          }
+          if (data.theme_color) {
+            localStorage.setItem(`watcher_profile_${pId}_theme_color`, data.theme_color);
           }
         }
       });
@@ -665,6 +737,7 @@ export default function App() {
     localStorage.removeItem(`watcher_profile_${profileId}_tmdb_token`);
     localStorage.removeItem(`watcher_profile_${profileId}_stats_config`);
     localStorage.removeItem(`watcher_profile_${profileId}_details`);
+    localStorage.removeItem(`watcher_profile_${profileId}_collections`);
 
     if (activeProfile && activeProfile.id === profileId) {
       setActiveProfile(null);
@@ -791,6 +864,7 @@ export default function App() {
               setActiveTab('profile');
               setProfileSubPage('settings');
             }}
+            onOpenCollectionModal={setCollectionModalMedia}
           />
         )}
 
@@ -804,7 +878,7 @@ export default function App() {
 
         {activeTab === 'collection' && (
           <MyList 
-            trackedItems={trackedItems} 
+            trackedItems={trackedItems}
             onSelectCard={(item) => setSelectedMedia(item)} 
           />
         )}
@@ -816,8 +890,12 @@ export default function App() {
             onSwitchProfile={handleSwitchProfile}
             trackedItems={trackedItems} 
             onSelectCard={(item) => setSelectedMedia(item)} 
+            collections={collections}
+            onSaveCollections={saveCollections}
             tmdbToken={tmdbToken}
             onSaveToken={handleSaveToken}
+            themeColor={themeColor}
+            onSaveThemeColor={handleSaveThemeColor}
             onImportData={handleImportData}
             onResetData={handleResetData}
             showNotification={showNotification}
@@ -856,6 +934,18 @@ export default function App() {
           onRemoveFromWatchlist={handleRemoveFromWatchlist}
           onSelectMedia={setSelectedMedia}
           tmdbToken={tmdbToken}
+          onOpenCollectionModal={setCollectionModalMedia}
+        />
+      )}
+
+      {/* Add to Collection Modal Popup */}
+      {collectionModalMedia && (
+        <AddToCollectionModal
+          item={collectionModalMedia}
+          collections={collections}
+          onSaveCollections={saveCollections}
+          onClose={() => setCollectionModalMedia(null)}
+          showNotification={showNotification}
         />
       )}
     </div>
