@@ -12,21 +12,33 @@
           var icon = localStorage.getItem('watcher_app_icon_global');
           var pngCache = localStorage.getItem('watcher_app_icon_png_cache');
           var href = './logo.svg'; // fallback default
+          var type = 'image/svg+xml';
           
           if (icon) {
             if (icon.startsWith('data:')) {
               href = icon; // Uploaded custom icon (already base64)
+              type = icon.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png';
             } else if (pngCache) {
               href = pngCache; // SVG converted to PNG
+              type = 'image/png';
             } else {
               href = './' + (icon.startsWith('/') ? icon.slice(1) : icon);
+              if (!href.endsWith('.svg')) type = 'image/png';
             }
           }
           
+          // Inietta apple-touch-icon
           var appleLink = document.createElement('link');
           appleLink.rel = 'apple-touch-icon';
           appleLink.href = href;
           document.head.appendChild(appleLink);
+          
+          // Aggiorna la favicon esistente in modo sincrono
+          var existingFavicon = document.querySelector('link[rel="icon"]');
+          if (existingFavicon) {
+            existingFavicon.href = href;
+            existingFavicon.type = type;
+          }
         } catch(e){}
       })();
     </script>
