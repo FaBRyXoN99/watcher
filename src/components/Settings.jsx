@@ -477,6 +477,65 @@ export default function Settings({
         </div>
       </div>
 
+      {/* App Icon Selection Panel */}
+      <div className="settings-section">
+        <h2>Icona dell'App (PWA)</h2>
+        <p className="settings-description">
+          Carica un'immagine per cambiare l'icona del sito. Questa sarà l'icona utilizzata quando aggiungi Watcher alla schermata Home del tuo telefono! L'impostazione è globale per questo dispositivo.
+        </p>
+        <div style={{ display: 'flex', gap: '16px', marginTop: '16px', alignItems: 'center' }}>
+          <div style={{
+            width: 60, height: 60, borderRadius: '16px', overflow: 'hidden',
+            background: 'var(--bg-input)', border: '2px solid var(--border-light)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center'
+          }}>
+            <img 
+              src={localStorage.getItem('watcher_app_icon_global') || '/logo.svg'} 
+              alt="App Icon" 
+              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              onError={(e) => { e.target.src = '/logo.svg'; }}
+            />
+          </div>
+          <div>
+            <input
+              type="file"
+              id="appIconUpload"
+              accept="image/png, image/jpeg, image/svg+xml"
+              style={{ display: 'none' }}
+              onChange={async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = async (event) => {
+                  const base64Icon = event.target.result;
+                  localStorage.setItem('watcher_app_icon_global', base64Icon);
+                  try {
+                    const { updateAppIcon } = await import('../iconHelper.js');
+                    updateAppIcon(base64Icon);
+                  } catch(e) {}
+                  // Forziamo un re-render o mostriamo la notifica
+                  showNotification('Icona aggiornata con successo! Aggiungi ora l\'app alla Home.', 'success');
+                  // piccolo trucco per ricaricare l'immagine nel DOM locale
+                  e.target.value = null;
+                  window.dispatchEvent(new Event('storage'));
+                };
+                reader.readAsDataURL(file);
+              }}
+            />
+            <button 
+              className="btn-outline"
+              onClick={() => document.getElementById('appIconUpload').click()}
+              style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+            >
+              Carica Nuova Icona
+            </button>
+            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+              Formati consigliati: PNG quadrato o SVG.
+            </p>
+          </div>
+        </div>
+      </div>
+
       {/* Google Link Panel */}
       <div className="settings-section">
         <h2>Account Collegati</h2>
