@@ -665,18 +665,17 @@ export default function DetailsModal({
                   border: '1.5px solid var(--border-light)',
                   color: 'var(--text-white)',
                   borderRadius: '12px',
-                  padding: '10px 18px',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
+                  width: '42px',
+                  height: '42px',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  justifyContent: 'center',
                   cursor: 'pointer',
                   transition: 'var(--transition-smooth)'
                 }}
+                title="Aggiungi alla collezione"
               >
-                <FolderKanbanIcon size={15} />
-                Collezione
+                <FolderKanbanIcon size={18} />
               </button>
               <button className={`dm-eye-btn ${loggedInfo ? 'dm-eye-btn-active' : ''}`}
                 onClick={() => setShowLogPopup(true)} title={loggedInfo ? 'Visto · modifica' : 'Segna come visto'}>

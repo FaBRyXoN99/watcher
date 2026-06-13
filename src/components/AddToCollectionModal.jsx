@@ -47,7 +47,7 @@ export default function AddToCollectionModal({ item, collections, onSaveCollecti
   };
 
   return (
-    <div className="lp-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
+    <div className="lp-overlay" onClick={onClose} style={{ zIndex: 2500 }}>
       <div className="lp-card" onClick={e => e.stopPropagation()} style={{ maxWidth: '400px' }}>
         <div className="lp-header">
           <span className="lp-title">Aggiungi a una Collezione</span>
