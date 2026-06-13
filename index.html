@@ -6,6 +6,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Watcher - Il tuo tracker personale premium per film e serie TV. Scopri dove guardare i tuoi titoli preferiti e dai voti con mezzi voti." />
     <title>Watcher - Tracker Personale di Film e Serie TV</title>
+    <script>
+      (function(){
+        try {
+          var icon = localStorage.getItem('watcher_app_icon_global');
+          var pngCache = localStorage.getItem('watcher_app_icon_png_cache');
+          var href = './logo.svg'; // fallback default
+          
+          if (icon) {
+            if (icon.startsWith('data:')) {
+              href = icon; // Uploaded custom icon (already base64)
+            } else if (pngCache) {
+              href = pngCache; // SVG converted to PNG
+            } else {
+              href = './' + (icon.startsWith('/') ? icon.slice(1) : icon);
+            }
+          }
+          
+          var appleLink = document.createElement('link');
+          appleLink.rel = 'apple-touch-icon';
+          appleLink.href = href;
+          document.head.appendChild(appleLink);
+        } catch(e){}
+      })();
+    </script>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
   </head>
   <body>

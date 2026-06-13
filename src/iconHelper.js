@@ -22,7 +22,8 @@ export const updateAppIcon = (iconUrl) => {
       appleIcon.rel = 'apple-touch-icon';
       document.head.appendChild(appleIcon);
     }
-    appleIcon.href = pngUrl;
+    // Aggiungo timestamp per bypassare la cache aggressiva di iOS
+    appleIcon.href = pngUrl.startsWith('data:') ? pngUrl : `${pngUrl}?v=${Date.now()}`;
 
     // Generate dynamic Manifest
     const manifest = {
@@ -67,7 +68,9 @@ export const updateAppIcon = (iconUrl) => {
       canvas.height = 512;
       const ctx = canvas.getContext('2d');
       ctx.drawImage(img, 0, 0, 512, 512);
-      applyIconUrls(canvas.toDataURL('image/png'), actualUrl);
+      const pngDataUrl = canvas.toDataURL('image/png');
+      try { localStorage.setItem('watcher_app_icon_png_cache', pngDataUrl); } catch(e){}
+      applyIconUrls(pngDataUrl, actualUrl);
     };
     img.onerror = () => {
       // Fallback
@@ -75,6 +78,7 @@ export const updateAppIcon = (iconUrl) => {
     };
     img.src = actualUrl;
   } else {
+    try { localStorage.removeItem('watcher_app_icon_png_cache'); } catch(e){}
     applyIconUrls(actualUrl, actualUrl);
   }
 };
