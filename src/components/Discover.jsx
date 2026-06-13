@@ -150,6 +150,7 @@ const FALLBACK_ANIM = [
 function RandomPickerCard({ streamingMovies, streamingTv, onSelect, tmdbToken, loading }) {
   const [movieIdx, setMovieIdx] = useState(0);
   const [tvIdx, setTvIdx] = useState(0);
+  const refreshIconRef = useRef(null);
 
   const rigenera = () => {
     if (streamingMovies.length > 1) setMovieIdx(i => (i + Math.floor(Math.random() * (streamingMovies.length - 1)) + 1) % streamingMovies.length);

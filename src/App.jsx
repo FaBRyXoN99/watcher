@@ -811,7 +811,6 @@ export default function App() {
             onMouseLeave={() => homeIconRef.current?.stopAnimation()}
           >
             <HomeIcon ref={homeIconRef} size={22} />
-            <span>Home</span>
           </button>
 
           {/* WATCHLIST TAB */}
@@ -822,7 +821,6 @@ export default function App() {
             onMouseLeave={() => timerIconRef.current?.stopAnimation()}
           >
             <TimerIcon ref={timerIconRef} size={22} />
-            <span>Watchlist</span>
           </button>
 
           {/* COLLECTION TAB */}
@@ -833,7 +831,6 @@ export default function App() {
             onMouseLeave={() => clapIconRef.current?.stopAnimation()}
           >
             <ClapIcon ref={clapIconRef} size={22} />
-            <span>Collection</span>
           </button>
 
           {/* PROFILE/PROFIL TAB */}
@@ -844,7 +841,6 @@ export default function App() {
             onMouseLeave={() => userIconRef.current?.stopAnimation()}
           >
             <UserIcon ref={userIconRef} size={22} />
-            <span>Profilo</span>
           </button>
         </div>
       </nav>
