@@ -614,6 +614,7 @@ export default function Discover({
   const arrowTrendingMoviesRef = useRef(null);
   const arrowTrendingTvRef = useRef(null);
   const arrowTopRatedMoviesRef = useRef(null);
+  const searchInputRef = useRef(null);
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -788,6 +789,12 @@ export default function Discover({
         }}>Watcher</h1>
         
         <div className={`search-capsule ${isSearchFocused || searchQuery ? 'active' : ''}`}
+          onClick={() => {
+            if (!isSearchFocused && !searchQuery) {
+              setIsSearchFocused(true);
+              setTimeout(() => searchInputRef.current?.focus(), 50);
+            }
+          }}
           style={{ 
             height: '42px', 
             borderRadius: '21px', 
@@ -803,10 +810,14 @@ export default function Discover({
             border: '1px solid var(--border-light)',
             transition: 'var(--transition-smooth)',
             marginLeft: 'auto',
+            cursor: (!isSearchFocused && !searchQuery) ? 'pointer' : 'default',
             zIndex: 3
           }}>
-          <SearchIcon size={18} style={{ flexShrink: 0, color: (isSearchFocused || searchQuery) ? 'var(--accent-cyan)' : 'var(--text-white)' }} />
+          <div style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }} onClick={() => searchInputRef.current?.focus()}>
+            <SearchIcon size={18} style={{ flexShrink: 0, color: (isSearchFocused || searchQuery) ? 'var(--accent-cyan)' : 'var(--text-white)' }} />
+          </div>
           <input
+            ref={searchInputRef}
             type="text"
             placeholder="Cerca un film o serie TV..."
             value={searchQuery}
@@ -825,7 +836,7 @@ export default function Discover({
             }}
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--text-grey)', cursor: 'pointer', padding: '0 4px', fontSize: '1rem', flexShrink: 0 }}>✕</button>
+            <button onClick={(e) => { e.stopPropagation(); setSearchQuery(''); }} style={{ background: 'none', border: 'none', color: 'var(--text-grey)', cursor: 'pointer', padding: '0 4px', fontSize: '1rem', flexShrink: 0 }}>✕</button>
           )}
         </div>
       </div>
