@@ -526,8 +526,8 @@ body {
 
 /* standard poster card in slider */
 .poster-slider-card {
-  min-width: 130px;
-  width: 130px;
+  min-width: 110px;
+  width: 110px;
   display: flex;
   flex-direction: column;
   cursor: pointer;

@@ -791,25 +791,41 @@ export default function Discover({
           style={{ 
             height: '42px', 
             borderRadius: '21px', 
-            padding: '0 12px',
-            maxWidth: (isSearchFocused || searchQuery) ? '240px' : '110px',
-            flex: (isSearchFocused || searchQuery) ? '1' : '0 0 auto',
+            padding: (isSearchFocused || searchQuery) ? '0 16px' : '0',
+            width: (isSearchFocused || searchQuery) ? 'calc(100% - 50px)' : '42px',
+            maxWidth: (isSearchFocused || searchQuery) ? '100%' : '42px',
+            position: (isSearchFocused || searchQuery) ? 'absolute' : 'relative',
+            right: (isSearchFocused || searchQuery) ? '0' : 'auto',
+            justifyContent: (isSearchFocused || searchQuery) ? 'flex-start' : 'center',
+            display: 'flex',
+            alignItems: 'center',
+            background: 'var(--bg-deep)',
+            border: '1px solid var(--border-light)',
             transition: 'var(--transition-smooth)',
             marginLeft: 'auto',
-            zIndex: 2
+            zIndex: 3
           }}>
-          <SearchIcon size={16} style={{ flexShrink: 0 }} />
+          <SearchIcon size={18} style={{ flexShrink: 0, color: (isSearchFocused || searchQuery) ? 'var(--accent-cyan)' : 'var(--text-white)' }} />
           <input
             type="text"
-            placeholder="Cerca..."
+            placeholder="Cerca un film o serie TV..."
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
             onFocus={() => setIsSearchFocused(true)}
             onBlur={() => setIsSearchFocused(false)}
-            style={{ fontSize: '0.85rem', background: 'none', border: 'none', outline: 'none', color: 'var(--text-white)', width: '100%' }}
+            style={{ 
+              fontSize: '0.9rem', 
+              background: 'none', 
+              border: 'none', 
+              outline: 'none', 
+              color: 'var(--text-white)', 
+              width: '100%', 
+              marginLeft: '8px',
+              display: (isSearchFocused || searchQuery) ? 'block' : 'none'
+            }}
           />
           {searchQuery && (
-            <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--text-grey)', cursor: 'pointer', padding: '0 2px', fontSize: '0.9rem', flexShrink: 0 }}>✕</button>
+            <button onClick={() => setSearchQuery('')} style={{ background: 'none', border: 'none', color: 'var(--text-grey)', cursor: 'pointer', padding: '0 4px', fontSize: '1rem', flexShrink: 0 }}>✕</button>
           )}
         </div>
       </div>
