@@ -496,24 +496,29 @@ export default function Settings({
 
       {/* App Icon Selection Panel */}
       <div className="settings-section">
-        <h2>Icona dell'App (PWA)</h2>
+        <h2>Icona dell'App</h2>
         <p className="settings-description">
           Carica un'immagine per cambiare l'icona del sito. Questa sarà l'icona utilizzata quando aggiungi Watcher alla schermata Home del tuo telefono! L'impostazione è globale per questo dispositivo.
         </p>
         <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
           {[
-            '/logo.svg',
-            ...Array.from({ length: 11 }, (_, i) => `/${i + 1}.svg`),
+            'logo.svg',
+            ...Array.from({ length: 11 }, (_, i) => `${i + 1}.svg`),
             ...(JSON.parse(localStorage.getItem('watcher_custom_icons') || '[]'))
           ].map((iconSrc, idx) => {
-            const currentIcon = localStorage.getItem('watcher_app_icon_global') || '/logo.svg';
-            const isActive = currentIcon === iconSrc;
+            const rawCurrent = localStorage.getItem('watcher_app_icon_global') || 'logo.svg';
+            const isActive = rawCurrent === iconSrc || rawCurrent === `/${iconSrc}`;
+            const displaySrc = iconSrc.startsWith('data:') 
+              ? iconSrc 
+              : `${import.meta.env.BASE_URL}${iconSrc.replace(/^\\//, '')}`;
+              
             return (
               <div 
                 key={idx}
                 onClick={() => {
-                  localStorage.setItem('watcher_app_icon_global', iconSrc);
-                  import('../iconHelper.js').then(m => m.updateAppIcon(iconSrc)).catch(()=>{});
+                  const saveVal = iconSrc.startsWith('data:') ? iconSrc : iconSrc.replace(/^\\//, '');
+                  localStorage.setItem('watcher_app_icon_global', saveVal);
+                  import('../iconHelper.js').then(m => m.updateAppIcon(saveVal)).catch(()=>{});
                   window.dispatchEvent(new Event('storage'));
                   showNotification('Icona impostata con successo!', 'success');
                 }}
@@ -527,10 +532,10 @@ export default function Settings({
                 title="Seleziona Icona"
               >
                 <img 
-                  src={iconSrc} 
+                  src={displaySrc} 
                   alt={`Icona ${idx}`} 
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={(e) => { e.target.src = '/logo.svg'; }}
+                  onError={(e) => { e.target.src = `${import.meta.env.BASE_URL}logo.svg`; }}
                 />
                 {idx > 11 && (
                   <button
@@ -540,8 +545,9 @@ export default function Settings({
                       const newIcons = customIcons.filter(ic => ic !== iconSrc);
                       localStorage.setItem('watcher_custom_icons', JSON.stringify(newIcons));
                       if (isActive) {
-                        localStorage.setItem('watcher_app_icon_global', '/logo.svg');
-                        import('../iconHelper.js').then(m => m.updateAppIcon('/logo.svg')).catch(()=>{});
+                        localStorage.setItem('watcher_app_icon_global', 'logo.svg');
+                        import('../iconHelper.js').then(m => m.updateAppIcon('logo.svg')).catch(()=>{});
+                        window.dispatchEvent(new Event('storage'));
                       }
                       window.dispatchEvent(new Event('storage'));
                     }}

@@ -1,6 +1,10 @@
 export const updateAppIcon = (iconUrl) => {
   if (!iconUrl) return;
 
+  const actualUrl = iconUrl.startsWith('data:') 
+    ? iconUrl 
+    : `${import.meta.env.BASE_URL}${iconUrl.replace(/^\\//, '')}`;
+
   // Update favicon
   let favicon = document.querySelector('link[rel="icon"]');
   if (!favicon) {
@@ -8,7 +12,7 @@ export const updateAppIcon = (iconUrl) => {
     favicon.rel = 'icon';
     document.head.appendChild(favicon);
   }
-  favicon.href = iconUrl;
+  favicon.href = actualUrl;
 
   // Update apple-touch-icon
   let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');
@@ -17,7 +21,7 @@ export const updateAppIcon = (iconUrl) => {
     appleIcon.rel = 'apple-touch-icon';
     document.head.appendChild(appleIcon);
   }
-  appleIcon.href = iconUrl;
+  appleIcon.href = actualUrl;
 
   // Generate dynamic Manifest
   const manifest = {
@@ -29,9 +33,9 @@ export const updateAppIcon = (iconUrl) => {
     theme_color: localStorage.getItem('watcher_profiles') ? "#0a0a0a" : "#8a14ff",
     icons: [
       {
-        src: iconUrl,
+        src: actualUrl,
         sizes: "192x192 512x512",
-        type: iconUrl.startsWith('data:image/svg+xml') ? 'image/svg+xml' : (iconUrl.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png'),
+        type: actualUrl.startsWith('data:image/svg+xml') ? 'image/svg+xml' : (actualUrl.startsWith('data:image/jpeg') ? 'image/jpeg' : 'image/png'),
         purpose: "any maskable"
       }
     ]
@@ -58,7 +62,7 @@ export const initAppIcon = () => {
   if (customIcon) {
     updateAppIcon(customIcon);
   } else {
-    // Default fallback (can be relative to domain)
-    updateAppIcon('/logo.svg');
+    // Default fallback
+    updateAppIcon('logo.svg');
   }
 };
