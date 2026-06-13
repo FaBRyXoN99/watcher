@@ -414,6 +414,11 @@ export default function App() {
 
   // Add item to Watchlist
   const handleAddToWatchlist = (item) => {
+    if (!activeProfile) {
+      showNotification("Devi accedere o creare un profilo per usare questa funzione.", "error");
+      setActiveTab('profile');
+      return;
+    }
     if (watchlist.some(w => w.id === item.id)) {
       showNotification(`"${item.title}" è già in watchlist!`, "error");
       return;
@@ -425,6 +430,7 @@ export default function App() {
 
   // Remove item from Watchlist
   const handleRemoveFromWatchlist = (id) => {
+    if (!activeProfile) return;
     const itemToRemove = watchlist.find(w => w.id === id);
     const newWatchlist = watchlist.filter(w => w.id !== id);
     saveWatchlist(newWatchlist);
@@ -435,6 +441,11 @@ export default function App() {
 
   // Log or Update an item in the tracker (watched Collection)
   const handleSaveLog = (logData) => {
+    if (!activeProfile) {
+      showNotification("Devi accedere o creare un profilo per usare questa funzione.", "error");
+      setActiveTab('profile');
+      return;
+    }
     const existingIndex = trackedItems.findIndex(i => i.id === logData.id);
     let newItems = [...trackedItems];
 
@@ -799,33 +810,9 @@ export default function App() {
     localStorage.setItem(`watcher_profile_${activeProfile.id}_details`, JSON.stringify(updatedProfile));
   };
 
-  // If no profile selected, display profile picker
-  if (!activeProfile) {
-    return (
-      <div className="app-container" style={{ minHeight: '100vh', justifyContent: 'center' }}>
-        {notification && (
-          <div className={`notification-banner ${notification.type}`}>
-            {notification.type === 'success' ? '✓' : '⚠'} {notification.message}
-          </div>
-        )}
-        <ProfileSelection 
-          profiles={profiles} 
-          onSelectProfile={handleSelectProfile} 
-          onCreateProfile={handleCreateProfile} 
-          onDeleteProfile={handleDeleteProfile} 
-          googleClientId={googleClientId}
-          googleAccessToken={googleAccessToken}
-          onSetGoogleAccessToken={setGoogleAccessToken}
-          requestGoogleToken={requestGoogleToken}
-          onSaveGoogleClientId={(id) => {
-            setGoogleClientId(id);
-            localStorage.setItem('watcher_google_client_id', id);
-          }}
-        />
-      </div>
-    );
-  }
-
+  // Default tab should probably be home.
+  // ProfileSelection is moved to be rendered when activeTab === 'profile' && !activeProfile.
+  
   return (
     <div className="app-container">
       {/* Toast banner notification */}
@@ -919,7 +906,26 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'profile' && (
+        {activeTab === 'profile' && !activeProfile && (
+          <div style={{ paddingTop: '80px', paddingBottom: '120px' }}>
+            <ProfileSelection 
+              profiles={profiles} 
+              onSelectProfile={handleSelectProfile} 
+              onCreateProfile={handleCreateProfile} 
+              onDeleteProfile={handleDeleteProfile} 
+              googleClientId={googleClientId}
+              googleAccessToken={googleAccessToken}
+              onSetGoogleAccessToken={setGoogleAccessToken}
+              requestGoogleToken={requestGoogleToken}
+              onSaveGoogleClientId={(id) => {
+                setGoogleClientId(id);
+                localStorage.setItem('watcher_google_client_id', id);
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'profile' && activeProfile && (
           <Profile 
             profile={activeProfile}
             onSaveProfile={handleSaveProfile}
