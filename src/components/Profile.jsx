@@ -2,8 +2,10 @@ import React, { useState, useRef, useEffect } from 'react';
 import Settings from './Settings';
 import { StatsScrollCards } from './MyList';
 import { PenToolIcon } from './icons/PenToolIcon';
+import { PlusIcon } from './icons/PlusIcon';
 import { CogIcon } from './icons/CogIcon';
 import { ArrowRightIcon } from './icons/ArrowRightIcon';
+import SearchAndAddModal from './SearchAndAddModal';
 
 // ─── Icon helpers ─────────────────────────────────────────────────────────────
 const IconPencil = () => (
@@ -323,23 +325,231 @@ function CreateListModal({ onSave, onClose }) {
   );
 }
 
+// ─── Edit custom list modal ───────────────────────────────────────────────────
+function EditListModal({ collection, onSave, onClose }) {
+  const [listName, setListName] = useState(collection.name);
+  const [listDesc, setListDesc] = useState(collection.desc || '');
+  const [emoji, setEmoji] = useState(collection.emoji || '📋');
+
+  const handleSave = (e) => {
+    e.preventDefault();
+    if (!listName.trim()) return;
+    onSave({ ...collection, name: listName, desc: listDesc, emoji });
+  };
+
+  const EMOJIS = ['📋', '🎬', '❤️', '⭐', '🔥', '🎭', '🌍', '👻', '🤩', '🎵', '🏆', '🎮'];
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-content" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+        <button className="modal-close-btn" onClick={onClose}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <div className="modal-body" style={{ marginTop: '16px' }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, marginBottom: '22px', borderLeft: '3px solid var(--accent-cyan)', paddingLeft: '10px' }}>
+            Modifica Lista
+          </h2>
+          <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div className="form-group">
+              <label className="form-label">Emoji lista</label>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                {EMOJIS.map(e => (
+                  <button key={e} type="button" onClick={() => setEmoji(e)}
+                    style={{
+                      width: 38, height: 38, borderRadius: 8, fontSize: '1.2rem',
+                      border: emoji === e ? '2px solid var(--accent-cyan)' : '1px solid var(--border-light)',
+                      background: emoji === e ? 'rgba(44,242,255,0.1)' : 'var(--bg-input)',
+                      cursor: 'pointer', transition: 'var(--transition-smooth)'
+                    }}
+                  >{e}</button>
+                ))}
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Nome lista</label>
+              <input className="custom-input" type="text" value={listName} onChange={e => setListName(e.target.value)} placeholder="es. Film da guardare con amici" required/>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Descrizione (opzionale)</label>
+              <input className="custom-input" type="text" value={listDesc} onChange={e => setListDesc(e.target.value)} placeholder="Breve descrizione..."/>
+            </div>
+            <button type="submit" className="btn-primary" style={{ marginTop: 4 }}>Salva Modifiche</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Collection Details sub-page ──────────────────────────────────────────────
-function CollectionDetailsPage({ collection, onBack, onSelectCard }) {
+function CollectionDetailsPage({ collection, onBack, onSelectCard, tmdbToken, showNotification, onUpdateCollection, onDeleteCollection }) {
+  const [showMenu, setShowMenu] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const penIconRef = useRef(null);
+  const plusIconRef = useRef(null);
+
+  const handleAddMedia = (item) => {
+    // Check if already in list
+    if (collection.items.some(i => i.id === item.id)) {
+      showNotification(`"${item.title}" è già in questa lista.`, 'error');
+      return;
+    }
+    const updated = { ...collection, items: [...collection.items, item] };
+    onUpdateCollection(updated);
+    showNotification(`"${item.title}" aggiunto alla lista!`, 'success');
+    setShowAddModal(false);
+  };
+
+  const handleDelete = () => {
+    if (window.confirm(`Vuoi davvero eliminare la lista "${collection.name}"?`)) {
+      onDeleteCollection(collection.id);
+      onBack();
+    }
+  };
+
+  const handleShareText = async () => {
+    setIsSharing(true);
+    let text = `${collection.emoji} ${collection.name}\n${collection.desc ? collection.desc + '\n' : ''}\n`;
+    
+    for (let i = 0; i < collection.items.length; i++) {
+      const item = collection.items[i];
+      let director = "Regista N/D";
+      if (tmdbToken && item.tmdbId) {
+        try {
+          const type = item.type === 'movie' ? 'movie' : 'tv';
+          const res = await fetch(`https://api.themoviedb.org/3/${type}/${item.tmdbId}/credits`, {
+            headers: { Authorization: `Bearer ${tmdbToken}` }
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const d = data.crew.find(c => c.job === 'Director');
+            if (d) director = d.name;
+          }
+        } catch(e){}
+      }
+      text += `- ${item.title} (${director}, ${item.year || 'N/D'})\n`;
+    }
+
+    try {
+      await navigator.clipboard.writeText(text);
+      showNotification("Lista copiata negli appunti come testo!", "success");
+    } catch(e) {
+      showNotification("Errore durante la copia.", "error");
+    }
+    setIsSharing(false);
+    setShowMenu(false);
+  };
+
+  const handleShareLink = async () => {
+    try {
+      const smallColl = {
+        id: `imported-${Date.now()}`,
+        name: collection.name,
+        desc: collection.desc,
+        emoji: collection.emoji,
+        items: collection.items.map(i => ({
+          id: i.id, tmdbId: i.tmdbId, title: i.title, type: i.type, year: i.year, 
+          imdbRating: i.imdbRating, poster: i.poster, backdrop: i.backdrop
+        }))
+      };
+      
+      const jsonStr = JSON.stringify(smallColl);
+      const b64 = btoa(encodeURIComponent(jsonStr));
+      const url = `${window.location.origin}${window.location.pathname}?importCollection=${b64}`;
+      await navigator.clipboard.writeText(url);
+      showNotification("Link copiato negli appunti! Condividilo con i tuoi amici.", "success");
+    } catch (e) {
+      showNotification("Errore nella generazione del link.", "error");
+    }
+    setShowMenu(false);
+  };
+
   if (!collection) return null;
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '28px' }}>
-        <button onClick={onBack}
-          style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-light)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-white)' }}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <polyline points="15 18 9 12 15 6"/>
-          </svg>
-        </button>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
-          <span style={{ marginRight: '10px' }}>{collection.emoji || '📋'}</span>
-          {collection.name}
-        </h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '28px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button onClick={onBack}
+            style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-light)', borderRadius: '50%', width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-white)' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+          <h1 style={{ fontSize: '1.5rem', fontWeight: 700 }}>
+            <span style={{ marginRight: '10px' }}>{collection.emoji || '📋'}</span>
+            {collection.name}
+          </h1>
+        </div>
+
+        {/* Action Menu */}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          {/* Plus Add Button */}
+          <button 
+            onClick={() => setShowAddModal(true)}
+            onMouseEnter={() => plusIconRef.current?.startAnimation()}
+            onMouseLeave={() => plusIconRef.current?.stopAnimation()}
+            style={{ 
+              background: 'var(--bg-deep)', 
+              border: '1px solid var(--border-light)', 
+              borderRadius: '50%', width: '40px', height: '40px', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center', 
+              cursor: 'pointer', color: 'var(--text-white)',
+              transition: 'var(--transition-smooth)'
+            }}
+          >
+            <PlusIcon ref={plusIconRef} size={20} />
+          </button>
+
+          <div style={{ position: 'relative' }}>
+            <button 
+            onClick={() => setShowMenu(!showMenu)}
+            onMouseEnter={() => penIconRef.current?.startAnimation()}
+            onMouseLeave={() => penIconRef.current?.stopAnimation()}
+            style={{ 
+              background: showMenu ? 'rgba(44,242,255,0.1)' : 'var(--bg-deep)', 
+              border: `1px solid ${showMenu ? 'var(--accent-cyan)' : 'var(--border-light)'}`, 
+              borderRadius: '50%', width: '40px', height: '40px', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center', 
+              cursor: 'pointer', color: showMenu ? 'var(--accent-cyan)' : 'var(--text-white)',
+              transition: 'var(--transition-smooth)'
+            }}
+          >
+            <PenToolIcon ref={penIconRef} size={20} />
+          </button>
+          
+          {showMenu && (
+            <div style={{
+              position: 'absolute', top: 'calc(100% + 8px)', right: 0, zIndex: 80,
+              background: 'var(--bg-deep)', border: '1px solid var(--border-light)',
+              borderRadius: 'var(--border-radius-md)', padding: '8px', minWidth: '220px',
+              boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+            }}>
+              <button onClick={() => { setShowMenu(false); setShowEditModal(true); }}
+                style={{ display: 'block', width: '100%', background: 'none', border: 'none', color: 'var(--text-white)', padding: '10px 14px', textAlign: 'left', fontSize: '0.88rem', cursor: 'pointer' }}>
+                ✏️ Modifica info lista
+              </button>
+              <button onClick={handleShareText} disabled={isSharing}
+                style={{ display: 'block', width: '100%', background: 'none', border: 'none', color: 'var(--text-white)', padding: '10px 14px', textAlign: 'left', fontSize: '0.88rem', cursor: 'pointer', opacity: isSharing ? 0.5 : 1 }}>
+                📋 {isSharing ? 'Recupero info...' : 'Condividi come Testo'}
+              </button>
+              <button onClick={handleShareLink}
+                style={{ display: 'block', width: '100%', background: 'none', border: 'none', color: 'var(--text-white)', padding: '10px 14px', textAlign: 'left', fontSize: '0.88rem', cursor: 'pointer' }}>
+                🔗 Condividi come Link per l'app
+              </button>
+              <div style={{ height: '1px', background: 'var(--border-light)', margin: '4px 0' }} />
+              <button onClick={handleDelete}
+                style={{ display: 'block', width: '100%', background: 'none', border: 'none', color: 'var(--accent-red)', padding: '10px 14px', textAlign: 'left', fontSize: '0.88rem', cursor: 'pointer' }}>
+                🗑️ Elimina lista
+              </button>
+            </div>
+          )}
+        </div>
+        </div>
       </div>
 
       {collection.items && collection.items.length > 0 ? (
@@ -372,6 +582,22 @@ function CollectionDetailsPage({ collection, onBack, onSelectCard }) {
           <p style={{ fontSize: '2rem', marginBottom: '12px' }}>{collection.emoji || '📋'}</p>
           <p>La collezione è vuota.</p>
         </div>
+      )}
+
+      {showEditModal && (
+        <EditListModal 
+          collection={collection}
+          onSave={(updated) => { onUpdateCollection(updated); setShowEditModal(false); }}
+          onClose={() => setShowEditModal(false)}
+        />
+      )}
+
+      {showAddModal && (
+        <SearchAndAddModal
+          tmdbToken={tmdbToken}
+          onClose={() => setShowAddModal(false)}
+          onAddMedia={handleAddMedia}
+        />
       )}
     </div>
   );
@@ -512,6 +738,10 @@ export default function Profile({
         collection={col} 
         onBack={() => { setSubPage(null); setActiveCollectionId(null); }} 
         onSelectCard={onSelectCard} 
+        tmdbToken={tmdbToken}
+        showNotification={showNotification}
+        onDeleteCollection={(id) => onSaveCollections((collections || []).filter(c => c.id !== id))}
+        onUpdateCollection={(updated) => onSaveCollections((collections || []).map(c => c.id === updated.id ? updated : c))}
       />
     );
   }

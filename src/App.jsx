@@ -68,6 +68,43 @@ export default function App() {
     }
   }, []);
 
+  // Import collection from URL
+  useEffect(() => {
+    if (!activeProfile) return;
+    
+    const params = new URLSearchParams(window.location.search);
+    const importData = params.get('importCollection');
+    if (importData) {
+      try {
+        const decoded = decodeURIComponent(atob(importData));
+        const newCollection = JSON.parse(decoded);
+        
+        // Rimuovi parametro senza ricaricare la pagina
+        const url = new URL(window.location);
+        url.searchParams.delete('importCollection');
+        window.history.replaceState({}, document.title, url.toString());
+        
+        if (newCollection && newCollection.id && newCollection.name) {
+          newCollection.id = `imported-${Date.now()}`;
+          // Usa setTimeout per assicurarci che i dati del profilo siano stati caricati (collections state)
+          setTimeout(() => {
+            setCollections(prev => {
+              const updated = [newCollection, ...(prev || [])];
+              localStorage.setItem(`watcher_collections_${activeProfile.id}`, JSON.stringify(updated));
+              return updated;
+            });
+            setNotification({ message: `Collezione "${newCollection.name}" importata!`, type: 'success' });
+            setTimeout(() => setNotification(null), 3000);
+          }, 500);
+        }
+      } catch (err) {
+        console.error("Errore importazione collezione", err);
+        setNotification({ message: "Errore nell'importazione dal link.", type: 'error' });
+        setTimeout(() => setNotification(null), 3000);
+      }
+    }
+  }, [activeProfile]);
+
   const loadProfileData = (profileId) => {
     // 1. Tracked items
     const storedItems = localStorage.getItem(`watcher_profile_${profileId}_tracked_items`);
