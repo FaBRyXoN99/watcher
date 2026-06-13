@@ -59,7 +59,6 @@ export default function ProfileSelection({
   onSaveGoogleClientId
 }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showGoogleModal, setShowGoogleModal] = useState(false);
   const [showGoogleConfigModal, setShowGoogleConfigModal] = useState(false);
   const [isManageMode, setIsManageMode] = useState(false);
   const [localClientId, setLocalClientId] = useState(googleClientId || '');
@@ -94,20 +93,6 @@ export default function ProfileSelection({
       };
       onCreateProfile(newProfile);
     }
-    setShowGoogleModal(false);
-  };
-
-  const handleGoogleCustomSubmit = (e) => {
-    e.preventDefault();
-    const nameVal = e.target.googleName.value.trim();
-    const emailVal = e.target.googleEmail.value.trim();
-    if (!nameVal || !emailVal) return;
-
-    handleGoogleLoginSelect({
-      name: nameVal,
-      email: emailVal,
-      avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(nameVal)}&backgroundColor=b6e3f4`
-    });
   };
 
   const handleSubmit = (e) => {
@@ -115,7 +100,7 @@ export default function ProfileSelection({
     if (!name.trim()) return;
 
     const finalAvatar = customAvatar || selectedAvatar;
-    const finalUsername = username.trim() ? (username.startsWith('@') ? username : `@${username}`) : `@${name.toLowerCase().replace(/\s+/g, '')}`;
+    const finalUsername = username.trim() ? (username.startsWith('@') ? username : `@${username}`) : `@${name.toLowerCase().replace(/\\s+/g, '')}`;
 
     onCreateProfile({
       id: `prof-${Date.now()}`,
@@ -219,7 +204,7 @@ export default function ProfileSelection({
                   }
                 });
               } else {
-                setShowGoogleModal(true);
+                setShowGoogleConfigModal(true);
               }
             }}
             style={{
@@ -376,117 +361,7 @@ export default function ProfileSelection({
         </div>
       )}
 
-      {/* Google Login Modal */}
-      {showGoogleModal && (
-        <div className="modal-overlay" onClick={() => setShowGoogleModal(false)}>
-          <div className="modal-content" style={{ maxWidth: '400px', padding: 0 }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '30px 24px', textAlign: 'center', position: 'relative' }}>
-              
-              <button className="modal-close-btn" style={{ top: '15px', right: '15px' }} onClick={() => setShowGoogleModal(false)}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
 
-              <div style={{ marginBottom: '24px' }}>
-                <svg width="40" height="40" viewBox="0 0 24 24" style={{ marginBottom: '12px' }}>
-                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.69a5.74 5.74 0 0 1-2.48 3.77v3.13h4.02c2.35-2.16 3.7-5.34 3.7-8.75z"/>
-                  <path fill="#34A853" d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-4.02-3.13c-1.12.75-2.55 1.19-3.94 1.19-3.03 0-5.6-2.05-6.51-4.82H1.36v3.23C3.34 21.6 7.4 24 12 24z"/>
-                  <path fill="#FBBC05" d="M5.49 14.33c-.23-.69-.36-1.42-.36-2.18s.13-1.49.36-2.18v-3.23H1.36C.49 8.5 0 10.19 0 12s.49 3.5 1.36 5.18l4.13-3.23z"/>
-                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.96 1.19 15.24 0 12 0 7.4 0 3.34 2.4 1.36 6.37l4.13 3.23c.91-2.77 3.48-4.85 6.51-4.85z"/>
-                </svg>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-white)', margin: '0 0 6px 0' }}>Scegli un account</h2>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-grey)', margin: 0 }}>per continuare su <strong>Watcher</strong></p>
-              </div>
-
-              <div style={{ marginBottom: '16px', background: 'rgba(255, 153, 0, 0.1)', border: '1px solid rgba(255, 153, 0, 0.25)', borderRadius: '8px', padding: '10px 14px', fontSize: '0.8rem', color: 'var(--accent-orange)', display: 'flex', flexDirection: 'column', gap: '6px', textAlign: 'left' }}>
-                <span style={{ fontWeight: 600 }}>⚠️ Modalità Sandbox (Simulata)</span>
-                <span>L'applicazione sta simulando l'accesso Google. Per usare il tuo vero account Google, configura il Client ID.</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowGoogleModal(false);
-                    setShowGoogleConfigModal(true);
-                  }}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--accent-cyan)',
-                    textDecoration: 'underline',
-                    padding: 0,
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    textAlign: 'left',
-                    fontWeight: 600
-                  }}
-                >
-                  Configura Client ID per accesso reale →
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left', marginBottom: '20px' }}>
-                {[
-                  { name: 'Mario Rossi', email: 'mario.rossi@gmail.com', avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Fred&backgroundColor=b6e3f4' },
-                  { name: 'Laura Bianchi', email: 'laura.bianchi@gmail.com', avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Luna&backgroundColor=ffdfb4' },
-                  { name: 'Giovanni Verde', email: 'giovanni.verde@gmail.com', avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Milo&backgroundColor=d6ffb7' }
-                ].map(acc => (
-                  <button 
-                    key={acc.email}
-                    type="button"
-                    onClick={() => handleGoogleLoginSelect(acc)}
-                    className="google-account-btn"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      width: '100%',
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: '12px',
-                      padding: '12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      color: 'var(--text-white)'
-                    }}
-                  >
-                    <img src={acc.avatar} alt={acc.name} style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#fff' }} />
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{acc.name}</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-grey)' }}>{acc.email}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '16px', textAlign: 'left' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-grey)', display: 'block', marginBottom: '8px' }}>Oppure usa un altro account:</span>
-                <form onSubmit={handleGoogleCustomSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <input 
-                    type="text" 
-                    placeholder="Nome Completo (es. Luca Neri)" 
-                    className="custom-input" 
-                    style={{ padding: '10px 14px', fontSize: '0.85rem' }}
-                    required 
-                    name="googleName"
-                  />
-                  <input 
-                    type="email" 
-                    placeholder="Indirizzo Email" 
-                    className="custom-input" 
-                    style={{ padding: '10px 14px', fontSize: '0.85rem' }}
-                    required 
-                    name="googleEmail"
-                  />
-                  <button type="submit" className="btn-primary" style={{ padding: '10px', fontSize: '0.85rem' }}>
-                    Accedi
-                  </button>
-                </form>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Real Google Configuration Modal */}
       {showGoogleConfigModal && (

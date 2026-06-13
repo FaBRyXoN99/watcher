@@ -515,10 +515,26 @@ export default function Settings({
             return (
               <div 
                 key={idx}
-                onClick={() => {
+                onClick={(e) => {
                   const saveVal = iconSrc.startsWith('data:') ? iconSrc : (iconSrc.startsWith('/') ? iconSrc.slice(1) : iconSrc);
                   localStorage.setItem('watcher_app_icon_global', saveVal);
                   import('../iconHelper.js').then(m => m.updateAppIcon(saveVal)).catch(()=>{});
+                  
+                  // Force a re-render of this node by updating a dummy attribute, or dispatching an event
+                  e.currentTarget.style.border = '3px solid var(--accent-cyan)';
+                  e.currentTarget.style.boxShadow = '0 0 15px var(--accent-cyan)40';
+                  
+                  // For a real react re-render we can just fire storage event and if App listens to it, great.
+                  // But since Settings doesn't listen, we manually traverse siblings to remove border
+                  if (e.currentTarget.parentNode) {
+                    Array.from(e.currentTarget.parentNode.children).forEach(child => {
+                      if (child !== e.currentTarget && child.tagName === 'DIV') {
+                        child.style.border = '2px solid var(--border-light)';
+                        child.style.boxShadow = 'none';
+                      }
+                    });
+                  }
+                  
                   window.dispatchEvent(new Event('storage'));
                   showNotification('Icona impostata con successo!', 'success');
                 }}
