@@ -59,7 +59,8 @@ export default function Settings({
   lastGoogleSync,
   onSaveToGoogleDrive,
   onLoadFromGoogleDrive,
-  onSwitchProfile
+  onSwitchProfile,
+  onBack
 }) {
   const [clientIdInput, setClientIdInput] = useState(googleClientId);
 
@@ -308,9 +309,25 @@ export default function Settings({
 
   return (
     <div>
-      <h1 className="gradient-text-title">
-        Impostazioni e <span>Backup</span>
-      </h1>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+        {onBack && (
+          <button onClick={onBack}
+            style={{ 
+              background: 'var(--bg-deep)', border: '1px solid var(--border-light)', 
+              borderRadius: '50%', width: '40px', height: '40px', 
+              display: 'flex', alignItems: 'center', justifyContent: 'center', 
+              cursor: 'pointer', color: 'var(--text-white)',
+              flexShrink: 0
+            }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <polyline points="15 18 9 12 15 6"/>
+            </svg>
+          </button>
+        )}
+        <h1 className="gradient-text-title" style={{ margin: 0 }}>
+          Impostazioni e <span>Backup</span>
+        </h1>
+      </div>
       <p className="subtitle-desc">Configura le chiavi API ed esporta o importa la tua lista di visione.</p>
 
       {/* API Key Panel */}
@@ -483,20 +500,65 @@ export default function Settings({
         <p className="settings-description">
           Carica un'immagine per cambiare l'icona del sito. Questa sarà l'icona utilizzata quando aggiungi Watcher alla schermata Home del tuo telefono! L'impostazione è globale per questo dispositivo.
         </p>
-        <div style={{ display: 'flex', gap: '16px', marginTop: '16px', alignItems: 'center' }}>
-          <div style={{
-            width: 60, height: 60, borderRadius: '16px', overflow: 'hidden',
-            background: 'var(--bg-input)', border: '2px solid var(--border-light)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center'
-          }}>
-            <img 
-              src={localStorage.getItem('watcher_app_icon_global') || '/logo.svg'} 
-              alt="App Icon" 
-              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              onError={(e) => { e.target.src = '/logo.svg'; }}
-            />
-          </div>
-          <div>
+        <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+          {[
+            '/logo.svg',
+            ...(JSON.parse(localStorage.getItem('watcher_custom_icons') || '[]'))
+          ].map((iconSrc, idx) => {
+            const currentIcon = localStorage.getItem('watcher_app_icon_global') || '/logo.svg';
+            const isActive = currentIcon === iconSrc;
+            return (
+              <div 
+                key={idx}
+                onClick={() => {
+                  localStorage.setItem('watcher_app_icon_global', iconSrc);
+                  import('../iconHelper.js').then(m => m.updateAppIcon(iconSrc)).catch(()=>{});
+                  window.dispatchEvent(new Event('storage'));
+                  showNotification('Icona impostata con successo!', 'success');
+                }}
+                style={{
+                  width: 60, height: 60, borderRadius: '16px', overflow: 'hidden',
+                  background: 'var(--bg-input)', border: isActive ? '3px solid var(--accent-cyan)' : '2px solid var(--border-light)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative'
+                }}
+                title="Seleziona Icona"
+              >
+                <img 
+                  src={iconSrc} 
+                  alt={`Icona ${idx}`} 
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onError={(e) => { e.target.src = '/logo.svg'; }}
+                />
+                {idx > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      const customIcons = JSON.parse(localStorage.getItem('watcher_custom_icons') || '[]');
+                      const newIcons = customIcons.filter(ic => ic !== iconSrc);
+                      localStorage.setItem('watcher_custom_icons', JSON.stringify(newIcons));
+                      if (isActive) {
+                        localStorage.setItem('watcher_app_icon_global', '/logo.svg');
+                        import('../iconHelper.js').then(m => m.updateAppIcon('/logo.svg')).catch(()=>{});
+                      }
+                      window.dispatchEvent(new Event('storage'));
+                    }}
+                    style={{
+                      position: 'absolute', top: 2, right: 2, background: 'rgba(0,0,0,0.6)', 
+                      border: 'none', borderRadius: '50%', width: 20, height: 20, 
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      color: 'white', cursor: 'pointer', padding: 0
+                    }}
+                    title="Elimina"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <input
               type="file"
               id="appIconUpload"
@@ -508,14 +570,18 @@ export default function Settings({
                 const reader = new FileReader();
                 reader.onload = async (event) => {
                   const base64Icon = event.target.result;
+                  const customIcons = JSON.parse(localStorage.getItem('watcher_custom_icons') || '[]');
+                  if (!customIcons.includes(base64Icon)) {
+                    customIcons.push(base64Icon);
+                    if (customIcons.length > 5) customIcons.shift(); // Keep max 5
+                    localStorage.setItem('watcher_custom_icons', JSON.stringify(customIcons));
+                  }
                   localStorage.setItem('watcher_app_icon_global', base64Icon);
                   try {
                     const { updateAppIcon } = await import('../iconHelper.js');
                     updateAppIcon(base64Icon);
                   } catch(e) {}
-                  // Forziamo un re-render o mostriamo la notifica
                   showNotification('Icona aggiornata con successo! Aggiungi ora l\'app alla Home.', 'success');
-                  // piccolo trucco per ricaricare l'immagine nel DOM locale
                   e.target.value = null;
                   window.dispatchEvent(new Event('storage'));
                 };
@@ -525,15 +591,16 @@ export default function Settings({
             <button 
               className="btn-outline"
               onClick={() => document.getElementById('appIconUpload').click()}
-              style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+              style={{ width: 60, height: 60, borderRadius: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold' }}
+              title="Carica Nuova Icona"
             >
-              Carica Nuova Icona
+              +
             </button>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '8px' }}>
-              Formati consigliati: PNG quadrato o SVG.
-            </p>
           </div>
         </div>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px' }}>
+          Formati consigliati: PNG quadrato o SVG. Max 5 icone personalizzate.
+        </p>
       </div>
 
       {/* Google Link Panel */}
