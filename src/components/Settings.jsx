@@ -503,6 +503,7 @@ export default function Settings({
         <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
           {[
             '/logo.svg',
+            ...Array.from({ length: 11 }, (_, i) => `/${i + 1}.svg`),
             ...(JSON.parse(localStorage.getItem('watcher_custom_icons') || '[]'))
           ].map((iconSrc, idx) => {
             const currentIcon = localStorage.getItem('watcher_app_icon_global') || '/logo.svg';
@@ -520,7 +521,8 @@ export default function Settings({
                   width: 60, height: 60, borderRadius: '16px', overflow: 'hidden',
                   background: 'var(--bg-input)', border: isActive ? '3px solid var(--accent-cyan)' : '2px solid var(--border-light)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative'
+                  cursor: 'pointer', transition: 'all 0.2s ease', position: 'relative',
+                  boxShadow: isActive ? '0 0 15px var(--accent-cyan)40' : 'none'
                 }}
                 title="Seleziona Icona"
               >
@@ -530,7 +532,7 @@ export default function Settings({
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                   onError={(e) => { e.target.src = '/logo.svg'; }}
                 />
-                {idx > 0 && (
+                {idx > 11 && (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -589,12 +591,19 @@ export default function Settings({
               }}
             />
             <button 
-              className="btn-outline"
               onClick={() => document.getElementById('appIconUpload').click()}
-              style={{ width: 60, height: 60, borderRadius: '16px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '24px', fontWeight: 'bold' }}
+              style={{
+                width: 60, height: 60, borderRadius: '16px', padding: 0, 
+                background: 'var(--bg-input)', border: '2px dashed var(--border-light)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', 
+                color: 'var(--text-grey)', cursor: 'pointer', transition: 'all 0.2s ease'
+              }}
               title="Carica Nuova Icona"
             >
-              +
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
             </button>
           </div>
         </div>
