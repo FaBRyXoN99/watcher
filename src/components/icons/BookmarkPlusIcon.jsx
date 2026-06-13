@@ -1,4 +1,4 @@
-import React, { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
+import React, { forwardRef, useCallback, useImperativeHandle, useRef , useEffect } from 'react';
 import { motion, useAnimation } from 'motion/react';
 
 const BOOKMARK_VARIANTS = {
@@ -30,6 +30,31 @@ const BookmarkPlusIcon = forwardRef(
   ({ className, size = 28, onMouseEnter, onMouseLeave, ...props }, ref) => {
     const controls = useAnimation();
     const isControlledRef = useRef(false);
+    const divRef = useRef(null);
+
+    useEffect(() => {
+      const parent = divRef.current?.parentElement;
+      if (!parent) return;
+
+      const handleEnter = () => { if (!isControlledRef.current) controls.start("animate"); };
+      const handleLeave = () => { if (!isControlledRef.current) controls.start("normal"); };
+      const handleClick = () => { 
+        if (!isControlledRef.current) {
+          controls.start("normal").then(() => controls.start("animate"));
+        } 
+      };
+
+      parent.addEventListener('mouseenter', handleEnter);
+      parent.addEventListener('mouseleave', handleLeave);
+      parent.addEventListener('click', handleClick);
+
+      return () => {
+        parent.removeEventListener('mouseenter', handleEnter);
+        parent.removeEventListener('mouseleave', handleLeave);
+        parent.removeEventListener('click', handleClick);
+      };
+    }, [controls]);
+
 
     useImperativeHandle(ref, () => {
       isControlledRef.current = true;
@@ -63,6 +88,7 @@ const BookmarkPlusIcon = forwardRef(
 
     return (
       <div
+        ref={divRef}
         className={className}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
