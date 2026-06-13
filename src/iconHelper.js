@@ -3,7 +3,7 @@ export const updateAppIcon = (iconUrl) => {
 
   const actualUrl = iconUrl.startsWith('data:') 
     ? iconUrl 
-    : `${import.meta.env.BASE_URL}${iconUrl.replace(/^\\//, '')}`;
+    : `${import.meta.env.BASE_URL}${iconUrl.startsWith('/') ? iconUrl.slice(1) : iconUrl}`;
 
   // Update favicon
   let favicon = document.querySelector('link[rel="icon"]');

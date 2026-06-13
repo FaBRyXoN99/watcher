@@ -510,13 +510,13 @@ export default function Settings({
             const isActive = rawCurrent === iconSrc || rawCurrent === `/${iconSrc}`;
             const displaySrc = iconSrc.startsWith('data:') 
               ? iconSrc 
-              : `${import.meta.env.BASE_URL}${iconSrc.replace(/^\\//, '')}`;
+              : `${import.meta.env.BASE_URL}${iconSrc.startsWith('/') ? iconSrc.slice(1) : iconSrc}`;
               
             return (
               <div 
                 key={idx}
                 onClick={() => {
-                  const saveVal = iconSrc.startsWith('data:') ? iconSrc : iconSrc.replace(/^\\//, '');
+                  const saveVal = iconSrc.startsWith('data:') ? iconSrc : (iconSrc.startsWith('/') ? iconSrc.slice(1) : iconSrc);
                   localStorage.setItem('watcher_app_icon_global', saveVal);
                   import('../iconHelper.js').then(m => m.updateAppIcon(saveVal)).catch(()=>{});
                   window.dispatchEvent(new Event('storage'));
