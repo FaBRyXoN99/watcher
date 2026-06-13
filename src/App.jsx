@@ -837,7 +837,10 @@ export default function App() {
 
       {/* Navigation bar sidebar for desktop / bottom for mobile */}
       <nav className="navigation-bar">
-        <div className="nav-logo">Watcher</div>
+        <div className="nav-logo" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <img src="/logo.svg" alt="Watcher Logo" style={{ height: '28px', width: 'auto', display: 'block' }} />
+          Watcher
+        </div>
         
         <div className="nav-items-container">
           {/* HOME TAB */}
