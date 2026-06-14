@@ -309,7 +309,13 @@ export default function Settings({
 
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '8px' }}>
+      <div style={{ 
+        display: 'flex', alignItems: 'center', gap: '16px', 
+        position: 'sticky', top: 0, zIndex: 100,
+        padding: '20px 0 10px 0', marginTop: '-20px', marginBottom: '8px',
+        background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)',
+        borderBottom: '1px solid rgba(255,255,255,0.05)'
+      }}>
         {onBack && (
           <button onClick={onBack}
             style={{ 
