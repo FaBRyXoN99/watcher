@@ -635,31 +635,43 @@ export default function Discover({
     const load = async () => {
       setHomeLoading(true);
       try {
-        const [trendMov, trendTv, topRated] = await Promise.allSettled([
+        const randPage1 = Math.floor(Math.random() * 5) + 1;
+        const randPage2 = Math.floor(Math.random() * 5) + 1;
+        const [trendMov, trendTv, topRated, streamMov, streamTv] = await Promise.allSettled([
           tmdbFetch('/trending/movie/week?language=it-IT', tmdbToken),
           tmdbFetch('/trending/tv/week?language=it-IT', tmdbToken),
-          tmdbFetch('/movie/top_rated?language=it-IT&page=1&region=IT', tmdbToken)
+          tmdbFetch('/movie/top_rated?language=it-IT&page=1&region=IT', tmdbToken),
+          tmdbFetch(`/discover/movie?language=it-IT&watch_region=IT&with_watch_monetization_types=flatrate|free|ads&sort_by=popularity.desc&page=${randPage1}`, tmdbToken),
+          tmdbFetch(`/discover/tv?language=it-IT&watch_region=IT&with_watch_monetization_types=flatrate|free|ads&sort_by=popularity.desc&page=${randPage2}`, tmdbToken)
         ]);
 
+        let tMovies = [];
         if (trendMov.status === 'fulfilled') {
-          const items = (trendMov.value.results || []).slice(0, 8).map(i => ({ ...mapTmdbItem({ ...i, media_type: 'movie' }), type: 'movie' }));
-          if (items.length > 0) {
-            setTrendingMovies(items);
-            setStreamingMovies(items);
-          }
+          tMovies = (trendMov.value.results || []).slice(0, 8).map(i => ({ ...mapTmdbItem({ ...i, media_type: 'movie' }), type: 'movie' }));
+          if (tMovies.length > 0) setTrendingMovies(tMovies);
         }
 
+        let tTv = [];
         if (trendTv.status === 'fulfilled') {
-          const items = (trendTv.value.results || []).slice(0, 8).map(i => ({ ...mapTmdbItem(i), type: 'tv' }));
-          if (items.length > 0) {
-            setTrendingTv(items);
-            setStreamingTv(items);
-          }
+          tTv = (trendTv.value.results || []).slice(0, 8).map(i => ({ ...mapTmdbItem(i), type: 'tv' }));
+          if (tTv.length > 0) setTrendingTv(tTv);
         }
 
         if (topRated.status === 'fulfilled') {
           const items = (topRated.value.results || []).slice(0, 8).map(i => ({ ...mapTmdbItem({ ...i, media_type: 'movie' }), type: 'movie' }));
           if (items.length > 0) setTopRatedMovies(items);
+        }
+
+        if (streamMov.status === 'fulfilled') {
+          const items = (streamMov.value.results || []).slice(0, 20).map(i => ({ ...mapTmdbItem({ ...i, media_type: 'movie' }), type: 'movie' }));
+          if (items.length > 0) setStreamingMovies(items);
+          else if (tMovies.length > 0) setStreamingMovies(tMovies);
+        }
+
+        if (streamTv.status === 'fulfilled') {
+          const items = (streamTv.value.results || []).slice(0, 20).map(i => ({ ...mapTmdbItem(i), type: 'tv' }));
+          if (items.length > 0) setStreamingTv(items);
+          else if (tTv.length > 0) setStreamingTv(tTv);
         }
 
       } catch (err) {
