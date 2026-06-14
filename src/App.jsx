@@ -856,22 +856,20 @@ export default function App() {
         )}
 
         {activeTab === 'profile' && !activeProfile && (
-          <div style={{ paddingTop: '80px' }}>
-            <ProfileSelection 
-              profiles={profiles} 
-              onSelectProfile={handleSelectProfile} 
-              onCreateProfile={handleCreateProfile} 
-              onDeleteProfile={handleDeleteProfile} 
-              googleClientId={googleClientId}
-              googleAccessToken={googleAccessToken}
-              onSetGoogleAccessToken={setGoogleAccessToken}
-              requestGoogleToken={requestGoogleToken}
-              onSaveGoogleClientId={(id) => {
-                setGoogleClientId(id);
-                localStorage.setItem('watcher_google_client_id', id);
-              }}
-            />
-          </div>
+          <ProfileSelection 
+            profiles={profiles} 
+            onSelectProfile={handleSelectProfile} 
+            onCreateProfile={handleCreateProfile} 
+            onDeleteProfile={handleDeleteProfile} 
+            googleClientId={googleClientId}
+            googleAccessToken={googleAccessToken}
+            onSetGoogleAccessToken={setGoogleAccessToken}
+            requestGoogleToken={requestGoogleToken}
+            onSaveGoogleClientId={(id) => {
+              setGoogleClientId(id);
+              localStorage.setItem('watcher_google_client_id', id);
+            }}
+          />
         )}
 
         {activeTab === 'profile' && activeProfile && (
