@@ -351,9 +351,24 @@ export default function Settings({
               style={{ fontFamily: 'monospace', fontSize: '0.8rem', resize: 'vertical' }}
             />
           </div>
-          <button type="submit" className="btn-primary" style={{ width: 'auto', alignSelf: 'flex-start', padding: '10px 24px' }}>
-            Salva Token
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button type="submit" className="btn-primary" style={{ width: 'auto', padding: '10px 24px' }}>
+              Salva Token
+            </button>
+            <button 
+              type="button" 
+              className="btn-outline" 
+              style={{ width: 'auto', padding: '10px 24px' }}
+              onClick={() => {
+                const defaultKey = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwZDQ0ZTcyMzdjMTI0OWIwYTJmZDhjN2Y3ZmFmMTNmMiIsIm5iZiI6MTc3NTk1MDYzOS43Nywic3ViIjoiNjlkYWRiMmY3MTRmOWUxNmJkNzBhMzA4Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.c5Rq_7D6KrJ1EgsFwxONoo_6R6TQ-ddf-pRxGiPCZN4";
+                document.getElementById('tokenInput').value = defaultKey;
+                onSaveToken(defaultKey);
+                showNotification("Chiave di default caricata e salvata!", "success");
+              }}
+            >
+              Chiave di default
+            </button>
+          </div>
         </form>
         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px' }}>
           * Puoi ottenere un token di accesso gratuito registrando un account su <a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>themoviedb.org</a>, andando in Impostazioni &gt; API e generando una chiave API per sviluppatori.
@@ -500,7 +515,7 @@ export default function Settings({
         <p className="settings-description">
           Carica un'immagine per cambiare l'icona del sito. Questa sarà l'icona utilizzata quando aggiungi Watcher alla schermata Home del tuo telefono! L'impostazione è globale per questo dispositivo.
         </p>
-        <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {[
             'logo.svg',
             ...Array.from({ length: 11 }, (_, i) => `${i + 1}.svg`),
@@ -634,89 +649,10 @@ export default function Settings({
         </p>
       </div>
 
-      {/* Google Link Panel */}
-      <div className="settings-section">
-        <h2>Account Collegati</h2>
-        <p className="settings-description">
-          Collega il tuo profilo ad un account Google per abilitare il login rapido.
-        </p>
-        
-        {profile && profile.isGoogleLinked ? (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(66, 133, 244, 0.1)', border: '1px solid rgba(66, 133, 244, 0.25)', borderRadius: '12px', padding: '14px 18px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-              <div style={{ background: '#fff', borderRadius: '50%', padding: '6px', display: 'flex' }}>
-                <svg width="18" height="18" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.69a5.74 5.74 0 0 1-2.48 3.77v3.13h4.02c2.35-2.16 3.7-5.34 3.7-8.75z"/>
-                  <path fill="#34A853" d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-4.02-3.13c-1.12.75-2.55 1.19-3.94 1.19-3.03 0-5.6-2.05-6.51-4.82H1.36v3.23C3.34 21.6 7.4 24 12 24z"/>
-                  <path fill="#FBBC05" d="M5.49 14.33c-.23-.69-.36-1.42-.36-2.18s.13-1.49.36-2.18v-3.23H1.36C.49 8.5 0 10.19 0 12s.49 3.5 1.36 5.18l4.13-3.23z"/>
-                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.96 1.19 15.24 0 12 0 7.4 0 3.34 2.4 1.36 6.37l4.13 3.23c.91-2.77 3.48-4.85 6.51-4.85z"/>
-                </svg>
-              </div>
-              <div>
-                <span style={{ display: 'block', fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-white)' }}>Collegato con Google</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-grey)' }}>{profile.googleEmail}</span>
-              </div>
-            </div>
-            <button 
-              type="button" 
-              className="btn-outline" 
-              style={{ flex: 'none', padding: '8px 16px', fontSize: '0.8rem', border: '1px solid rgba(255,3,0,0.3)', color: 'var(--accent-red)' }}
-              onClick={handleUnlinkGoogle}
-            >
-              Scollega
-            </button>
-          </div>
-        ) : (
-          <button 
-            type="button" 
-            className="btn-outline"
-            onClick={() => {
-              if (googleClientId) {
-                requestGoogleToken(async (token) => {
-                  try {
-                    const { fetchGoogleUserInfo } = await import('../googleDriveHelper');
-                    const userinfo = await fetchGoogleUserInfo(token);
-                    handleLinkGoogleSelect({
-                      name: userinfo.name,
-                      email: userinfo.email,
-                      avatar: userinfo.picture || `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(userinfo.name)}&backgroundColor=b6e3f4`
-                    });
-                  } catch (err) {
-                    showNotification("Impossibile collegare l'account Google.", "error");
-                  }
-                });
-              } else {
-                setShowGoogleLinkModal(true);
-              }
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '10px',
-              background: '#fff',
-              color: '#1f1f1f',
-              border: 'none',
-              padding: '10px 20px',
-              borderRadius: '6px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              width: '100%',
-              transition: 'all 0.2s ease'
-            }}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24">
-              <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.69a5.74 5.74 0 0 1-2.48 3.77v3.13h4.02c2.35-2.16 3.7-5.34 3.7-8.75z"/>
-              <path fill="#34A853" d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-4.02-3.13c-1.12.75-2.55 1.19-3.94 1.19-3.03 0-5.6-2.05-6.51-4.82H1.36v3.23C3.34 21.6 7.4 24 12 24z"/>
-              <path fill="#FBBC05" d="M5.49 14.33c-.23-.69-.36-1.42-.36-2.18s.13-1.49.36-2.18v-3.23H1.36C.49 8.5 0 10.19 0 12s.49 3.5 1.36 5.18l4.13-3.23z"/>
-              <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.96 1.19 15.24 0 12 0 7.4 0 3.34 2.4 1.36 6.37l4.13 3.23c.91-2.77 3.48-4.85 6.51-4.85z"/>
-            </svg>
-            Collega Account Google
-          </button>
-        )}
 
-        <div style={{ marginTop: '16px', borderTop: '1px solid var(--border-light)', paddingTop: '16px' }}>
+
+      <div className="settings-section">
+        <div style={{ paddingTop: '8px' }}>
           <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '8px' }}>Configurazione Google OAuth Client ID</h3>
           <p style={{ fontSize: '0.78rem', color: 'var(--text-grey)', marginBottom: '12px', lineHeight: 1.4 }}>
             Inserisci il tuo <strong>Google OAuth Client ID</strong> per autenticarti con il tuo vero account Google e salvare i dati su Google Drive. 
@@ -786,7 +722,7 @@ export default function Settings({
       </div>
 
       {/* Google Drive Sincronizzazione */}
-      {profile && profile.isGoogleLinked && (
+      {profile && (
         <div className="settings-section">
           <h2>Sincronizzazione Google Drive</h2>
           <p className="settings-description">

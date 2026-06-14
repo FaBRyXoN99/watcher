@@ -120,32 +120,7 @@ export default function App() {
         localStorage.removeItem('watcher_tracked_items'); // cleanup
       } else {
         // Preload default items
-        const defaultItems = [
-          {
-            id: "m-1",
-            tmdbId: 508442,
-            title: "Soul",
-            type: "movie",
-            poster: "https://image.tmdb.org/t/p/w342/hm58PHo18663gV2NyO95ZgY5g2y.jpg",
-            backdrop: "https://image.tmdb.org/t/p/original/kf456ZqeC45jznmrzw2nB16n43K.jpg",
-            rating: 4.5,
-            platform: "cinema",
-            watchDate: new Date().toISOString().split('T')[0],
-            notes: "Spettacolo pomeridiano, animazione e colonna sonora capolavoro!"
-          },
-          {
-            id: "s-1",
-            tmdbId: 66732,
-            title: "Stranger Things",
-            type: "tv",
-            poster: "https://image.tmdb.org/t/p/w342/49WJ21rrlUp7JU35iL67M87wZ7u.jpg",
-            backdrop: "https://image.tmdb.org/t/p/original/56v2AfA62e5ty6g2zZ76uiTT2O2.jpg",
-            rating: 5.0,
-            platform: "netflix",
-            watchDate: new Date().toISOString().split('T')[0],
-            notes: "Completata la quarta stagione, finale fantastico."
-          }
-        ];
+        const defaultItems = [];
         setTrackedItems(defaultItems);
         localStorage.setItem(`watcher_profile_${profileId}_tracked_items`, JSON.stringify(defaultItems));
       }
@@ -163,28 +138,7 @@ export default function App() {
         localStorage.setItem(`watcher_profile_${profileId}_watchlist`, oldGlobalWatchlist);
         localStorage.removeItem('watcher_watchlist'); // cleanup
       } else {
-        const defaultWatchlist = [
-          {
-            id: "m-2",
-            tmdbId: 438631,
-            title: "Dune",
-            type: "movie",
-            year: "2021",
-            imdbRating: "8.0",
-            poster: "https://image.tmdb.org/t/p/w342/d5N051zLi7tT57W0W2ZCX6mE1Vz.jpg",
-            backdrop: "https://image.tmdb.org/t/p/original/jyeUNS6t3j9d6P4w6CqW6qZk8F0.jpg"
-          },
-          {
-            id: "s-2",
-            tmdbId: 82856,
-            title: "The Mandalorian",
-            type: "tv",
-            year: "2019",
-            imdbRating: "8.7",
-            poster: "https://image.tmdb.org/t/p/w342/e1T2Jb54oMvVEe286G4J6t4aD12.jpg",
-            backdrop: "https://image.tmdb.org/t/p/original/o73wR1ZzT4525jTtw4aD1mE54b8.jpg"
-          }
-        ];
+        const defaultWatchlist = [];
         setWatchlist(defaultWatchlist);
         localStorage.setItem(`watcher_profile_${profileId}_watchlist`, JSON.stringify(defaultWatchlist));
       }
@@ -902,7 +856,7 @@ export default function App() {
         )}
 
         {activeTab === 'profile' && !activeProfile && (
-          <div style={{ paddingTop: '80px', paddingBottom: '120px' }}>
+          <div style={{ paddingTop: '80px' }}>
             <ProfileSelection 
               profiles={profiles} 
               onSelectProfile={handleSelectProfile} 
