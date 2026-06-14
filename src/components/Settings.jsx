@@ -517,11 +517,11 @@ export default function Settings({
         </p>
         <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'center' }}>
           {[
-            'logo.svg',
-            ...Array.from({ length: 11 }, (_, i) => `${i + 1}.svg`),
+            'logo.png',
+            ...Array.from({ length: 11 }, (_, i) => `${i + 1}.png`),
             ...(JSON.parse(localStorage.getItem('watcher_custom_icons') || '[]'))
           ].map((iconSrc, idx) => {
-            const rawCurrent = localStorage.getItem('watcher_app_icon_global') || 'logo.svg';
+            const rawCurrent = localStorage.getItem('watcher_app_icon_global') || 'logo.png';
             const isActive = rawCurrent === iconSrc || rawCurrent === `/${iconSrc}`;
             const displaySrc = iconSrc.startsWith('data:') 
               ? iconSrc 
@@ -566,7 +566,7 @@ export default function Settings({
                   src={displaySrc} 
                   alt={`Icona ${idx}`} 
                   style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onError={(e) => { e.target.src = `${import.meta.env.BASE_URL}logo.svg`; }}
+                  onError={(e) => { e.target.src = `${import.meta.env.BASE_URL}logo.png`; }}
                 />
                 {idx > 11 && (
                   <button
@@ -576,8 +576,8 @@ export default function Settings({
                       const newIcons = customIcons.filter(ic => ic !== iconSrc);
                       localStorage.setItem('watcher_custom_icons', JSON.stringify(newIcons));
                       if (isActive) {
-                        localStorage.setItem('watcher_app_icon_global', 'logo.svg');
-                        import('../iconHelper.js').then(m => m.updateAppIcon('logo.svg')).catch(()=>{});
+                        localStorage.setItem('watcher_app_icon_global', 'logo.png');
+                        import('../iconHelper.js').then(m => m.updateAppIcon('logo.png')).catch(()=>{});
                         window.dispatchEvent(new Event('storage'));
                       }
                       window.dispatchEvent(new Event('storage'));
@@ -645,7 +645,7 @@ export default function Settings({
           </div>
         </div>
         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px' }}>
-          Formati consigliati: PNG quadrato o SVG. Max 5 icone personalizzate.
+          Formati consigliati: PNG quadrato o JPEG. Max 5 icone personalizzate.
         </p>
       </div>
 

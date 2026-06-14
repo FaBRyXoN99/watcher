@@ -2,7 +2,7 @@
 <html lang="it">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="icon" type="image/png" href="./favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Watcher - Il tuo tracker personale premium per film e serie TV. Scopri dove guardare i tuoi titoli preferiti e dai voti con mezzi voti." />
     <title>Watcher - Tracker Personale di Film e Serie TV</title>
@@ -10,9 +10,18 @@
       (function(){
         try {
           var icon = localStorage.getItem('watcher_app_icon_global');
+          // Migrazione automatica da .svg a .png
+          if (icon === 'logo.svg') {
+            icon = 'logo.png';
+            localStorage.setItem('watcher_app_icon_global', 'logo.png');
+          } else if (icon && icon.endsWith('.svg') && !icon.startsWith('data:')) {
+            icon = icon.replace('.svg', '.png');
+            localStorage.setItem('watcher_app_icon_global', icon);
+          }
+
           var pngCache = localStorage.getItem('watcher_app_icon_png_cache');
-          var href = './logo.svg'; // fallback default
-          var type = 'image/svg+xml';
+          var href = './logo.png'; // fallback default
+          var type = 'image/png';
           
           if (icon) {
             if (icon.startsWith('data:')) {
@@ -23,7 +32,11 @@
               type = 'image/png';
             } else {
               href = './' + (icon.startsWith('/') ? icon.slice(1) : icon);
-              if (!href.endsWith('.svg')) type = 'image/png';
+              if (href.endsWith('.svg')) {
+                type = 'image/svg+xml';
+              } else {
+                type = 'image/png';
+              }
             }
           }
           

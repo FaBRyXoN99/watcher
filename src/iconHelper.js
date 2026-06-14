@@ -84,11 +84,20 @@ export const updateAppIcon = (iconUrl) => {
 };
 
 export const initAppIcon = () => {
-  const customIcon = localStorage.getItem('watcher_app_icon_global');
+  let customIcon = localStorage.getItem('watcher_app_icon_global');
+  // Migrazione automatica da .svg a .png
+  if (customIcon === 'logo.svg') {
+    customIcon = 'logo.png';
+    localStorage.setItem('watcher_app_icon_global', 'logo.png');
+  } else if (customIcon && customIcon.endsWith('.svg') && !customIcon.startsWith('data:')) {
+    customIcon = customIcon.replace('.svg', '.png');
+    localStorage.setItem('watcher_app_icon_global', customIcon);
+  }
+
   if (customIcon) {
     updateAppIcon(customIcon);
   } else {
     // Default fallback
-    updateAppIcon('logo.svg');
+    updateAppIcon('logo.png');
   }
 };
