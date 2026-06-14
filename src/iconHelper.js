@@ -6,14 +6,15 @@ export const updateAppIcon = (iconUrl) => {
     : `${import.meta.env.BASE_URL}${iconUrl.startsWith('/') ? iconUrl.slice(1) : iconUrl}`;
 
   const applyIconUrls = (pngUrl, rawUrl) => {
-    // Update favicon
+    // Keep favicon pointing to favicon.png as requested by the user
     let favicon = document.querySelector('link[rel="icon"]');
     if (!favicon) {
       favicon = document.createElement('link');
       favicon.rel = 'icon';
+      favicon.type = 'image/png';
       document.head.appendChild(favicon);
     }
-    favicon.href = rawUrl;
+    favicon.href = `${import.meta.env.BASE_URL}favicon.png`;
 
     // Update apple-touch-icon (MUST be PNG for iOS)
     let appleIcon = document.querySelector('link[rel="apple-touch-icon"]');

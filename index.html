@@ -46,11 +46,11 @@
           appleLink.href = href;
           document.head.appendChild(appleLink);
           
-          // Aggiorna la favicon esistente in modo sincrono
+          // Assicura che la favicon rimanga sempre ./favicon.png
           var existingFavicon = document.querySelector('link[rel="icon"]');
           if (existingFavicon) {
-            existingFavicon.href = href;
-            existingFavicon.type = type;
+            existingFavicon.href = './favicon.png';
+            existingFavicon.type = 'image/png';
           }
         } catch(e){}
       })();
