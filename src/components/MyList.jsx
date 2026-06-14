@@ -354,8 +354,8 @@ function MediaSection({ items, type, onSelectCard, onSeeAll }) {
 
   if (items.length === 0) {
     return (
-      <div style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-light)', borderRadius: 'var(--border-radius-lg)', padding: '28px', textAlign: 'center', color: 'var(--text-muted)' }}>
-        <p style={{ fontSize: '2rem', marginBottom: '8px' }}>{type === 'movie' ? '🎬' : '📺'}</p>
+      <div style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-light)', borderRadius: 'var(--border-radius-lg)', padding: '24px', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <p style={{ fontSize: '2rem', marginBottom: '6px' }}>{type === 'movie' ? '🎬' : '📺'}</p>
         <p style={{ fontSize: '0.9rem' }}>Nessun{type === 'movie' ? ' film' : 'a serie TV'} nella collezione.</p>
       </div>
     );
@@ -364,7 +364,7 @@ function MediaSection({ items, type, onSelectCard, onSeeAll }) {
   return (
     <div style={{ background: 'var(--bg-deep)', border: '1px solid var(--border-light)', borderRadius: 'var(--border-radius-lg)', overflow: 'hidden' }}>
       {/* Section header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', borderBottom: '1px solid var(--border-light)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid var(--border-light)' }}>
         <span style={{ fontWeight: 700, fontSize: '1rem' }}>{typeLabel} <span style={{ color: 'var(--text-grey)', fontWeight: 400 }}>({items.length})</span></span>
         <button onClick={onSeeAll}
           style={{ display: 'flex', alignItems: 'center', gap: '4px', background: 'none', border: 'none', color: 'var(--accent-cyan)', fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>
@@ -374,7 +374,7 @@ function MediaSection({ items, type, onSelectCard, onSeeAll }) {
       </div>
 
       {/* Horizontal poster scroll */}
-      <div style={{ padding: '16px 16px 20px 16px' }}>
+      <div style={{ padding: '12px 12px 16px 12px' }}>
         <div style={{ display: 'flex', gap: '14px', overflowX: 'auto', scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch', padding: '4px 0' }}>
           {preview.map(item => {
             const ps = getPlatStyle(item.platform);
@@ -432,11 +432,11 @@ export default function MyList({ trackedItems, onSelectCard }) {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
       {/* Title */}
       <div>
         <h1 className="gradient-text-title">La tua <span>Collezione</span></h1>
-        <p className="subtitle-desc">Tieni traccia di tutto ciò che hai guardato, quando e come.</p>
+        <p className="subtitle-desc" style={{ marginBottom: 0 }}>Tieni traccia di tutto ciò che hai guardato, quando e come.</p>
       </div>
 
       {/* Film section */}
