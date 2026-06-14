@@ -97,20 +97,6 @@ body {
   transition: var(--transition-smooth);
 }
 
-.nav-logo {
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--text-color);
-  letter-spacing: -0.5px;
-  margin-bottom: 40px;
-}
-
-@media (max-width: 768px) {
-  .nav-logo {
-    display: none !important;
-  }
-}
-
 .nav-items-container {
   display: flex;
   justify-content: space-around;
