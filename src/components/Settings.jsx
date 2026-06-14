@@ -515,7 +515,7 @@ export default function Settings({
         <p className="settings-description">
           Carica un'immagine per cambiare l'icona del sito. Questa sarà l'icona utilizzata quando aggiungi Watcher alla schermata Home del tuo telefono! L'impostazione è globale per questo dispositivo.
         </p>
-        <div style={{ display: 'flex', gap: '16px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
+        <div style={{ display: 'flex', gap: '12px', marginTop: '16px', flexWrap: 'wrap', justifyContent: 'flex-start' }}>
           {[
             'logo.png',
             ...Array.from({ length: 11 }, (_, i) => `${i + 1}.png`),
