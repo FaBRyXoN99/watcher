@@ -333,23 +333,41 @@ function GenrePickerCard({ tmdbToken, onSelect, showNotification }) {
         }
       }
       if (items.length === 0) {
+        // Fallback to MOCK_MEDIA when offline or TMDB search fails
+        const genreObj = genres.find(g => g.id === selectedGenre);
+        if (genreObj) {
+          const gName = genreObj.name.toLowerCase();
+          items = MOCK_MEDIA.filter(item => {
+            if (item.type !== mediaType) return false;
+            return item.genres?.some(g => {
+              const lowerG = g.toLowerCase();
+              return lowerG.includes(gName) || gName.includes(lowerG);
+            });
+          });
+        }
+      }
+      if (items.length === 0) {
         showNotification('Nessun risultato trovato. Prova un altro genere.', 'error');
         setLoading(false);
         return;
       }
-      const pick = items[Math.floor(Math.random() * Math.min(items.length, 10))];
-      setResult({
-        id: `${mediaType}-${pick.id}`,
-        tmdbId: pick.id,
-        title: pick.title || pick.name,
-        type: mediaType,
-        year: (pick.release_date || pick.first_air_date || '').split('-')[0],
-        imdbRating: pick.vote_average ? pick.vote_average.toFixed(1) : '0.0',
-        poster: pick.poster_path ? `https://image.tmdb.org/t/p/w342${pick.poster_path}` : '',
-        backdrop: pick.backdrop_path ? `https://image.tmdb.org/t/p/original${pick.backdrop_path}` : '',
-        description: pick.overview || '',
-        genres: [],
-      });
+      const pick = items[Math.floor(Math.random() * items.length)];
+      if (pick.id && String(pick.id).includes('-')) {
+        setResult(pick);
+      } else {
+        setResult({
+          id: `${mediaType}-${pick.id}`,
+          tmdbId: pick.id,
+          title: pick.title || pick.name,
+          type: mediaType,
+          year: (pick.release_date || pick.first_air_date || '').split('-')[0],
+          imdbRating: pick.vote_average ? pick.vote_average.toFixed(1) : '0.0',
+          poster: pick.poster_path ? `https://image.tmdb.org/t/p/w342${pick.poster_path}` : '',
+          backdrop: pick.backdrop_path ? `https://image.tmdb.org/t/p/original${pick.backdrop_path}` : '',
+          description: pick.overview || '',
+          genres: [],
+        });
+      }
     } catch { showNotification('Errore nel caricamento.', 'error'); }
     setLoading(false);
   };
@@ -482,23 +500,42 @@ function MoodPickerCard({ tmdbToken, onSelect, showNotification }) {
         }
       }
       if (items.length === 0) {
+        // Fallback to MOCK_MEDIA when offline or TMDB search fails
+        const targetGenreNames = genreIds.map(id => {
+          const list = mediaType === 'movie' ? MOVIE_GENRES : TV_GENRES;
+          return list.find(g => g.id === id)?.name.toLowerCase();
+        }).filter(Boolean);
+        
+        items = MOCK_MEDIA.filter(item => {
+          if (item.type !== mediaType) return false;
+          return item.genres?.some(g => {
+            const lowerG = g.toLowerCase();
+            return targetGenreNames.some(tgName => lowerG.includes(tgName) || tgName.includes(lowerG));
+          });
+        });
+      }
+      if (items.length === 0) {
         showNotification('Nessun risultato trovato. Prova un altro mood.', 'error');
         setLoading(false);
         return;
       }
-      const pick = items[Math.floor(Math.random() * Math.min(items.length, 10))];
-      setResult({
-        id: `${mediaType}-${pick.id}`,
-        tmdbId: pick.id,
-        title: pick.title || pick.name,
-        type: mediaType,
-        year: (pick.release_date || pick.first_air_date || '').split('-')[0],
-        imdbRating: pick.vote_average ? pick.vote_average.toFixed(1) : '0.0',
-        poster: pick.poster_path ? `https://image.tmdb.org/t/p/w342${pick.poster_path}` : '',
-        backdrop: pick.backdrop_path ? `https://image.tmdb.org/t/p/original${pick.backdrop_path}` : '',
-        description: pick.overview || '',
-        genres: [],
-      });
+      const pick = items[Math.floor(Math.random() * items.length)];
+      if (pick.id && String(pick.id).includes('-')) {
+        setResult(pick);
+      } else {
+        setResult({
+          id: `${mediaType}-${pick.id}`,
+          tmdbId: pick.id,
+          title: pick.title || pick.name,
+          type: mediaType,
+          year: (pick.release_date || pick.first_air_date || '').split('-')[0],
+          imdbRating: pick.vote_average ? pick.vote_average.toFixed(1) : '0.0',
+          poster: pick.poster_path ? `https://image.tmdb.org/t/p/w342${pick.poster_path}` : '',
+          backdrop: pick.backdrop_path ? `https://image.tmdb.org/t/p/original${pick.backdrop_path}` : '',
+          description: pick.overview || '',
+          genres: [],
+        });
+      }
     } catch { showNotification('Errore nel caricamento.', 'error'); }
     setLoading(false);
   };
@@ -709,53 +746,7 @@ export default function Discover({
     }
   };
 
-  // ─── Enrich media on click ────────────────────────────────────────────────
-  const handleMediaClick = async (mediaItem) => {
-    if (!mediaItem.tmdbId || !tmdbToken) {
-      onSelectMedia(MOCK_MEDIA.find(m => m.id === mediaItem.id) || mediaItem);
-      return;
-    }
-    setLoading(true);
-    try {
-      const typePath = mediaItem.type === 'movie' ? 'movie' : 'tv';
-      const [creditsRes, providersRes, detailsRes] = await Promise.allSettled([
-        tmdbFetch(`/${typePath}/${mediaItem.tmdbId}/credits?language=it-IT`, tmdbToken),
-        tmdbFetch(`/${typePath}/${mediaItem.tmdbId}/watch/providers`, tmdbToken),
-        tmdbFetch(`/${typePath}/${mediaItem.tmdbId}?language=it-IT`, tmdbToken)
-      ]);
 
-      const castList = creditsRes.status === 'fulfilled'
-        ? (creditsRes.value.cast || []).slice(0, 8).map(m => ({ name: m.name, character: m.character, avatar: TMDB_IMG(m.profile_path, 'w185') }))
-        : [];
-
-      let providersData = { flatrate: [], rent: [], buy: [], free: [], ads: [] };
-      if (providersRes.status === 'fulfilled') {
-        const reg = providersRes.value.results?.IT || {};
-        const mp = arr => (arr || []).map(p => ({ name: p.provider_name, logo: TMDB_IMG(p.logo_path, 'original'), id: p.provider_id }));
-        providersData = { flatrate: mp(reg.flatrate), rent: mp(reg.rent), buy: mp(reg.buy), free: mp(reg.free), ads: mp(reg.ads), link: reg.link || '' };
-      }
-
-      let duration = '', genres = [], seasons = [];
-      if (detailsRes.status === 'fulfilled') {
-        const d = detailsRes.value;
-        genres = (d.genres || []).map(g => g.name);
-        if (mediaItem.type === 'movie' && d.runtime) {
-          duration = `${Math.floor(d.runtime / 60)}h ${d.runtime % 60}m`;
-        } else if (mediaItem.type === 'tv') {
-          const ns = d.number_of_seasons || 1;
-          duration = `${ns} Stagion${ns > 1 ? 'i' : 'e'}`;
-          seasons = Array.from({ length: ns }, (_, i) => ({ number: i + 1, name: `Stagione ${i + 1}` }));
-        }
-      }
-
-      onSelectMedia({ ...mediaItem, cast: castList, providers: providersData, duration: duration || 'N/D', genres: genres.length > 0 ? genres : mediaItem.genres || ['Generico'], seasons });
-    } catch {
-      showNotification('Errore nel caricamento dettagli.', 'error');
-      onSelectMedia(mediaItem);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   // ─── Render ───────────────────────────────────────────────────────────────
   return (
@@ -870,7 +861,7 @@ export default function Discover({
           {results.length > 0 ? (
             <div className="media-grid" style={{ marginTop: '16px' }}>
               {results.map(item => (
-                <div className="media-card" key={item.id} onClick={() => handleMediaClick(item)}>
+                <div className="media-card" key={item.id} onClick={() => onSelectMedia(item)}>
                   <div className="card-image-container">
                     {item.poster
                       ? <img src={item.poster} alt={item.title} className="card-image" onError={e => { e.target.style.opacity = '0.2'; }}/>
@@ -882,7 +873,7 @@ export default function Discover({
                       trackedItems={trackedItems}
                       onAddToWatchlist={onAddToWatchlist}
                       onRemoveFromWatchlist={onRemoveFromWatchlist}
-                      onSelectMedia={handleMediaClick}
+                      onSelectMedia={onSelectMedia}
                     />
                     <div className="rating-pill"><span>★ {item.imdbRating}</span></div>
                   </div>
@@ -908,15 +899,15 @@ export default function Discover({
           <RandomPickerCard
             streamingMovies={streamingMovies}
             streamingTv={streamingTv}
-            onSelect={handleMediaClick}
+            onSelect={onSelectMedia}
             tmdbToken={tmdbToken}
             loading={homeLoading}
           />
 
           {/* Mini picker cards row */}
           <div style={{ display: 'flex', gap: '12px' }}>
-            <GenrePickerCard tmdbToken={tmdbToken} onSelect={handleMediaClick} showNotification={showNotification} />
-            <MoodPickerCard  tmdbToken={tmdbToken} onSelect={handleMediaClick} showNotification={showNotification} />
+            <GenrePickerCard tmdbToken={tmdbToken} onSelect={onSelectMedia} showNotification={showNotification} />
+            <MoodPickerCard  tmdbToken={tmdbToken} onSelect={onSelectMedia} showNotification={showNotification} />
           </div>
 
           {/* Trending Movies */}
@@ -933,7 +924,7 @@ export default function Discover({
               </h2>
               <div className="slider-container">
                 {trendingMovies.map(item => (
-                  <div key={item.id} className="poster-slider-card" onClick={() => handleMediaClick(item)}>
+                  <div key={item.id} className="poster-slider-card" onClick={() => onSelectMedia(item)}>
                     <div className="poster-slider-img-wrapper">
                       {item.poster
                         ? <img src={item.poster} alt={item.title} onError={e => { e.target.style.opacity = '0.2'; }}/>
@@ -945,7 +936,7 @@ export default function Discover({
                         trackedItems={trackedItems}
                         onAddToWatchlist={onAddToWatchlist}
                         onRemoveFromWatchlist={onRemoveFromWatchlist}
-                        onSelectMedia={handleMediaClick}
+                        onSelectMedia={onSelectMedia}
                       />
                     </div>
                     <div className="poster-card-title">{item.title}</div>
@@ -969,7 +960,7 @@ export default function Discover({
               </h2>
               <div className="slider-container">
                 {trendingTv.map(item => (
-                  <div key={item.id} className="poster-slider-card" onClick={() => handleMediaClick(item)}>
+                  <div key={item.id} className="poster-slider-card" onClick={() => onSelectMedia(item)}>
                     <div className="poster-slider-img-wrapper">
                       {item.poster
                         ? <img src={item.poster} alt={item.title} onError={e => { e.target.style.opacity = '0.2'; }}/>
@@ -981,7 +972,7 @@ export default function Discover({
                         trackedItems={trackedItems}
                         onAddToWatchlist={onAddToWatchlist}
                         onRemoveFromWatchlist={onRemoveFromWatchlist}
-                        onSelectMedia={handleMediaClick}
+                        onSelectMedia={onSelectMedia}
                       />
                     </div>
                     <div className="poster-card-title">{item.title}</div>
@@ -1005,7 +996,7 @@ export default function Discover({
               </h2>
               <div className="slider-container">
                 {topRatedMovies.map(item => (
-                  <div key={item.id} className="poster-slider-card" onClick={() => handleMediaClick(item)}>
+                  <div key={item.id} className="poster-slider-card" onClick={() => onSelectMedia(item)}>
                     <div className="poster-slider-img-wrapper">
                       {item.poster
                         ? <img src={item.poster} alt={item.title} onError={e => { e.target.style.opacity = '0.2'; }}/>
@@ -1017,7 +1008,7 @@ export default function Discover({
                         trackedItems={trackedItems}
                         onAddToWatchlist={onAddToWatchlist}
                         onRemoveFromWatchlist={onRemoveFromWatchlist}
-                        onSelectMedia={handleMediaClick}
+                        onSelectMedia={onSelectMedia}
                       />
                     </div>
                     <div className="poster-card-title">{item.title}</div>

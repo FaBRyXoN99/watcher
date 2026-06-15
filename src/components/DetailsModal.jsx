@@ -824,7 +824,7 @@ export default function DetailsModal({
                   <div className="dm-providers-row">
                     {streamProviders.map((p, i) => (
                       <div className="dm-provider-chip" key={i}>
-                        {p.logo.startsWith('http') ? <img src={p.logo} alt={p.name} className="dm-provider-logo"/> : <span style={{ fontSize: '1.1rem' }}>{p.logo}</span>}
+                        {p.logo && p.logo.startsWith('http') ? <img src={p.logo} alt={p.name} className="dm-provider-logo"/> : <span style={{ fontSize: '1.1rem' }}>{p.logo || '❓'}</span>}
                         <span>{p.name}</span>
                       </div>
                     ))}
@@ -836,7 +836,7 @@ export default function DetailsModal({
                     <div className="dm-providers-row">
                       {rentProviders.map((p, i) => (
                         <div className="dm-provider-chip" key={i}>
-                          {p.logo.startsWith('http') ? <img src={p.logo} alt={p.name} className="dm-provider-logo"/> : <span style={{ fontSize: '1.1rem' }}>{p.logo}</span>}
+                          {p.logo && p.logo.startsWith('http') ? <img src={p.logo} alt={p.name} className="dm-provider-logo"/> : <span style={{ fontSize: '1.1rem' }}>{p.logo || '❓'}</span>}
                           <span>{p.name}</span>
                         </div>
                       ))}

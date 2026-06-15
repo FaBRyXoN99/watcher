@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useImperativeHandle, useRef } from 'react';
+import { forwardRef, useCallback, useImperativeHandle, useRef, useEffect } from 'react';
 import { motion, useAnimation } from 'motion/react';
 
 const BOOKMARK_VARIANTS = {

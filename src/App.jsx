@@ -11,6 +11,18 @@ import { HomeIcon } from './components/icons/HomeIcon';
 import { TimerIcon } from './components/icons/TimerIcon';
 import { ClapIcon } from './components/icons/ClapIcon';
 import { UserIcon } from './components/icons/UserIcon';
+import { MOCK_MEDIA } from './mockData';
+
+const TMDB_IMG = (path, size = 'w500') =>
+  path ? `https://image.tmdb.org/t/p/${size}${path}` : '';
+
+async function tmdbFetch(endpoint, token) {
+  const res = await fetch(`https://api.themoviedb.org/3${endpoint}`, {
+    headers: { Authorization: `Bearer ${token}`, accept: 'application/json' }
+  });
+  if (!res.ok) throw new Error(`TMDB ${res.status}`);
+  return res.json();
+}
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -33,6 +45,92 @@ export default function App() {
   useEffect(() => {
     document.documentElement.style.setProperty('--theme-color', themeColor);
   }, [themeColor]);
+
+  const [mediaLoading, setMediaLoading] = useState(false);
+
+  // Centralized media select & enrichment logic
+  const handleSelectMedia = async (mediaItem) => {
+    if (!mediaItem) return;
+    
+    // Offline mode: No TMDB token or TMDB ID missing
+    if (!mediaItem.tmdbId || !tmdbToken) {
+      const mockFound = MOCK_MEDIA.find(m => m.id === mediaItem.id);
+      if (mockFound) {
+        setSelectedMedia({ ...mockFound, ...mediaItem });
+      } else {
+        setSelectedMedia(mediaItem);
+      }
+      return;
+    }
+
+    setMediaLoading(true);
+    try {
+      const typePath = mediaItem.type === 'movie' ? 'movie' : 'tv';
+      const [creditsRes, providersRes, detailsRes] = await Promise.allSettled([
+        tmdbFetch(`/${typePath}/${mediaItem.tmdbId}/credits?language=it-IT`, tmdbToken),
+        tmdbFetch(`/${typePath}/${mediaItem.tmdbId}/watch/providers`, tmdbToken),
+        tmdbFetch(`/${typePath}/${mediaItem.tmdbId}?language=it-IT`, tmdbToken)
+      ]);
+
+      const castList = creditsRes.status === 'fulfilled' && creditsRes.value
+        ? (creditsRes.value.cast || []).slice(0, 8).map(m => ({ 
+            name: m.name, 
+            character: m.character, 
+            avatar: TMDB_IMG(m.profile_path, 'w185') 
+          }))
+        : [];
+
+      let providersData = { flatrate: [], rent: [], buy: [], free: [], ads: [] };
+      if (providersRes.status === 'fulfilled' && providersRes.value) {
+        const reg = providersRes.value.results?.IT || {};
+        const mp = arr => (arr || []).map(p => ({ 
+          name: p.provider_name, 
+          logo: TMDB_IMG(p.logo_path, 'original'), 
+          id: p.provider_id 
+        }));
+        providersData = { 
+          flatrate: mp(reg.flatrate), 
+          rent: mp(reg.rent), 
+          buy: mp(reg.buy), 
+          free: mp(reg.free), 
+          ads: mp(reg.ads), 
+          link: reg.link || '' 
+        };
+      }
+
+      let duration = '', genres = [], seasons = [], description = mediaItem.description || '';
+      if (detailsRes.status === 'fulfilled' && detailsRes.value) {
+        const d = detailsRes.value;
+        genres = (d.genres || []).map(g => g.name);
+        if (d.overview) {
+          description = d.overview;
+        }
+        if (mediaItem.type === 'movie' && d.runtime) {
+          duration = `${Math.floor(d.runtime / 60)}h ${d.runtime % 60}m`;
+        } else if (mediaItem.type === 'tv') {
+          const ns = d.number_of_seasons || 1;
+          duration = `${ns} Stagion${ns > 1 ? 'i' : 'e'}`;
+          seasons = Array.from({ length: ns }, (_, i) => ({ number: i + 1, name: `Stagione ${i + 1}` }));
+        }
+      }
+
+      setSelectedMedia({ 
+        ...mediaItem, 
+        cast: castList.length > 0 ? castList : mediaItem.cast || [], 
+        providers: providersData, 
+        duration: duration || mediaItem.duration || 'N/D', 
+        genres: genres.length > 0 ? genres : mediaItem.genres || ['Generico'], 
+        seasons: seasons.length > 0 ? seasons : mediaItem.seasons || [],
+        description: description
+      });
+    } catch (err) {
+      console.error('Errore nel caricamento dettagli:', err);
+      showNotification('Errore nel caricamento dettagli.', 'error');
+      setSelectedMedia(mediaItem);
+    } finally {
+      setMediaLoading(false);
+    }
+  };
   const [statsConfig, setStatsConfig] = useState([
     { id: 'totalItems', label: 'Visti Totali', visible: true },
     { id: 'avgRating', label: 'Voto Medio', visible: true },
@@ -821,11 +919,21 @@ export default function App() {
         </div>
       </nav>
 
+      {/* Centralized loader spinner */}
+      {mediaLoading && (
+        <div className="global-loader-overlay">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="global-spinner">
+            <path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/>
+          </svg>
+          <span style={{ fontSize: '0.88rem', fontWeight: 500 }}>Caricamento dettagli...</span>
+        </div>
+      )}
+
       {/* Main content viewport */}
       <main className="main-content">
         {activeTab === 'home' && (
           <Discover 
-            onSelectMedia={(item) => setSelectedMedia(item)} 
+            onSelectMedia={handleSelectMedia} 
             tmdbToken={tmdbToken}
             showNotification={showNotification}
             watchlist={watchlist}
@@ -843,7 +951,7 @@ export default function App() {
         {activeTab === 'watchlist' && (
           <Watchlist 
             watchlist={watchlist} 
-            onSelectCard={(item) => setSelectedMedia(item)} 
+            onSelectCard={handleSelectMedia} 
             onNavigateToHome={() => setActiveTab('home')} 
           />
         )}
@@ -851,7 +959,7 @@ export default function App() {
         {activeTab === 'collection' && (
           <MyList 
             trackedItems={trackedItems}
-            onSelectCard={(item) => setSelectedMedia(item)} 
+            onSelectCard={handleSelectMedia} 
           />
         )}
 
@@ -878,7 +986,7 @@ export default function App() {
             onSaveProfile={handleSaveProfile}
             onSwitchProfile={handleSwitchProfile}
             trackedItems={trackedItems} 
-            onSelectCard={(item) => setSelectedMedia(item)} 
+            onSelectCard={handleSelectMedia} 
             collections={collections}
             onSaveCollections={saveCollections}
             tmdbToken={tmdbToken}
@@ -921,7 +1029,7 @@ export default function App() {
           inWatchlist={watchlist.some(i => i.id === selectedMedia.id)}
           onAddToWatchlist={handleAddToWatchlist}
           onRemoveFromWatchlist={handleRemoveFromWatchlist}
-          onSelectMedia={setSelectedMedia}
+          onSelectMedia={handleSelectMedia}
           tmdbToken={tmdbToken}
           onOpenCollectionModal={setCollectionModalMedia}
         />

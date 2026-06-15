@@ -1,7 +1,37 @@
 import React, { useRef, useState, useEffect } from 'react';
 
-// Robust CSV state machine parser that handles quotes and escapes
-function parseCSV(text) {
+// Auto-detect CSV separator (comma, semicolon, tab)
+function detectSeparator(text) {
+  const firstLineEnd = text.indexOf('\n');
+  const firstLine = firstLineEnd !== -1 ? text.substring(0, firstLineEnd) : text;
+  
+  let commaCount = 0;
+  let semicolonCount = 0;
+  let tabCount = 0;
+  let inQuotes = false;
+  
+  for (let i = 0; i < firstLine.length; i++) {
+    const char = firstLine[i];
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (!inQuotes) {
+      if (char === ',') commaCount++;
+      else if (char === ';') semicolonCount++;
+      else if (char === '\t') tabCount++;
+    }
+  }
+  
+  if (semicolonCount > commaCount && semicolonCount > tabCount) {
+    return ';';
+  }
+  if (tabCount > commaCount && tabCount > semicolonCount) {
+    return '\t';
+  }
+  return ',';
+}
+
+// Robust CSV state machine parser that handles quotes, escapes, and dynamic separator
+function parseCSV(text, sep = ',') {
   const lines = [];
   let row = [""];
   let inQuotes = false;
@@ -17,7 +47,7 @@ function parseCSV(text) {
       } else {
         inQuotes = !inQuotes;
       }
-    } else if (char === ',' && !inQuotes) {
+    } else if (char === sep && !inQuotes) {
       row.push("");
     } else if ((char === '\r' || char === '\n') && !inQuotes) {
       if (char === '\r' && nextChar === '\n') {
@@ -34,6 +64,66 @@ function parseCSV(text) {
   }
   return lines;
 }
+
+// Recursively traverse JSON objects to find potential show records
+function extractShowsFromJSON(obj) {
+  const items = [];
+  const titleKeys = [
+    'showname', 'showtitle', 'title', 'tvshowname', 'movietitle', 'moviename', 
+    'name', 'show', 'serie', 'titolo', 'originaltitle', 'originalname'
+  ];
+  const dateKeys = [
+    'updatedat', 'date', 'datewatched', 'watchedat', 'createdat', 'timestamp', 
+    'data', 'vistoil', 'creatoil', 'followedat', 'addedat', 'lastwatched', 'watchdate'
+  ];
+  const skipKeys = ['profile', 'user', 'account', 'settings', 'auth', 'metadata', 'configuration', 'config'];
+
+  function traverse(item, parentKey = '') {
+    if (!item) return;
+
+    if (Array.isArray(item)) {
+      item.forEach(subItem => traverse(subItem, parentKey));
+      return;
+    }
+
+    if (typeof item === 'object') {
+      const cleanParentKey = parentKey.toLowerCase().replace(/['"_\s-]/g, '');
+      if (skipKeys.includes(cleanParentKey)) {
+        return;
+      }
+
+      let title = null;
+      let date = null;
+
+      // First check if this object itself has title/date keys
+      for (const k of Object.keys(item)) {
+        const cleanKey = k.toLowerCase().replace(/['"_\s-]/g, '');
+        if (titleKeys.includes(cleanKey) && typeof item[k] === 'string') {
+          title = item[k];
+        }
+        if (dateKeys.includes(cleanKey) && (typeof item[k] === 'string' || typeof item[k] === 'number')) {
+          date = String(item[k]);
+        }
+      }
+
+      if (title && title.trim() !== '') {
+        items.push({ title: title.trim(), date });
+      } else {
+        // If not a matching show object, traverse its children
+        for (const k of Object.keys(item)) {
+          const cleanKey = k.toLowerCase().replace(/['"_\s-]/g, '');
+          if (!skipKeys.includes(cleanKey)) {
+            traverse(item[k], k);
+          }
+        }
+      }
+    }
+  }
+
+  traverse(obj);
+  return items;
+}
+
 
 export default function Settings({ 
   profile,
@@ -181,126 +271,168 @@ export default function Settings({
     const file = e.target.files[0];
     if (!file) return;
 
+    const processExtractedItems = (extracted, targetType) => {
+      if (targetType === 'tracked') {
+        // Group by title to count episodes (for seen_episodes.csv)
+        const showGroups = {};
+        extracted.forEach(item => {
+          const title = item.title;
+          const dateVal = item.date || '';
+          
+          if (!showGroups[title]) {
+            showGroups[title] = {
+              episodesCount: 0,
+              dates: []
+            };
+          }
+          showGroups[title].episodesCount++;
+          if (dateVal) {
+            showGroups[title].dates.push(dateVal);
+          }
+        });
+
+        return Object.entries(showGroups).map(([title, info]) => {
+          let latestDate = new Date().toISOString().split('T')[0];
+          if (info.dates.length > 0) {
+            try {
+              const parsedDates = info.dates.map(d => new Date(d)).filter(d => !isNaN(d.getTime()));
+              if (parsedDates.length > 0) {
+                const maxDate = new Date(Math.max(...parsedDates));
+                latestDate = maxDate.toISOString().split('T')[0];
+              }
+            } catch (_) {}
+          }
+
+          const safeId = `tvtime-tr-${encodeURIComponent(title.toLowerCase()).replace(/%/g, '')}-${Math.random().toString(36).substr(2, 9)}`;
+          return {
+            id: safeId,
+            tmdbId: null,
+            title: title,
+            type: "tv",
+            poster: "",
+            backdrop: "",
+            rating: 5.0,
+            platform: "TV Time",
+            watchDate: latestDate,
+            notes: `Importato da TV Time (${info.episodesCount} episodi visti)`
+          };
+        });
+      } else {
+        // watchlist (followed_shows.csv)
+        const importedItems = extracted.map(item => {
+          const title = item.title;
+          const safeId = `tvtime-wl-${encodeURIComponent(title.toLowerCase()).replace(/%/g, '')}-${Math.random().toString(36).substr(2, 9)}`;
+          return {
+            id: safeId,
+            tmdbId: null,
+            title: title,
+            type: "tv",
+            poster: "",
+            backdrop: "",
+            year: "",
+            imdbRating: "0.0"
+          };
+        });
+
+        // De-duplicate watchlist items
+        const uniqueItems = [];
+        const seenTitles = new Set();
+        importedItems.forEach(item => {
+          const cleanTitle = item.title.toLowerCase();
+          if (!seenTitles.has(cleanTitle)) {
+            seenTitles.add(cleanTitle);
+            uniqueItems.push(item);
+          }
+        });
+        return uniqueItems;
+      }
+    };
+
     const reader = new FileReader();
     reader.onload = (event) => {
       try {
-        const text = event.target.result;
-        const rows = parseCSV(text);
-        if (rows.length < 2) {
-          showNotification("Il file CSV è vuoto o non ha abbastanza righe.", "error");
-          return;
+        let text = event.target.result;
+        if (text.startsWith('\ufeff')) {
+          text = text.substring(1);
         }
 
-        const headers = rows[0].map(h => h.toLowerCase().trim().replace(/['"_\s-]/g, ''));
-        
-        // Find indices of relevant headers
-        const titleIndex = rows[0].findIndex(h => {
-          const clean = h.toLowerCase().trim().replace(/['"_\s-]/g, '');
-          return ['showname', 'showtitle', 'title', 'tvshowname', 'movietitle', 'name'].includes(clean);
-        });
-        const dateIndex = rows[0].findIndex(h => {
-          const clean = h.toLowerCase().trim().replace(/['"_\s-]/g, '');
-          return ['updatedat', 'date', 'datewatched', 'watchedat', 'createdat', 'timestamp'].includes(clean);
-        });
+        const trimmedText = text.trim();
+        let isJson = false;
+        let importedItems = [];
 
-        if (titleIndex === -1) {
-          showNotification("Impossibile trovare la colonna del titolo (es. 'show_name', 'title') nel CSV.", "error");
-          return;
+        if (trimmedText.startsWith('{') || trimmedText.startsWith('[')) {
+          try {
+            const jsonObj = JSON.parse(trimmedText);
+            isJson = true;
+            
+            const extracted = extractShowsFromJSON(jsonObj);
+            if (extracted.length === 0) {
+              showNotification("Nessun elemento valido trovato nel file JSON.", "error");
+              return;
+            }
+            
+            importedItems = processExtractedItems(extracted, target);
+          } catch (jsonErr) {
+            console.error("Failed to parse as JSON, falling back to CSV:", jsonErr);
+          }
         }
 
-        const dataRows = rows.slice(1).filter(r => r.length > titleIndex && r[titleIndex].trim() !== "");
+        if (!isJson) {
+          const separator = detectSeparator(text);
+          const rows = parseCSV(text, separator);
+          if (rows.length < 2) {
+            showNotification("Il file CSV è vuoto o non ha abbastanza righe.", "error");
+            return;
+          }
 
-        if (target === 'tracked') {
-          // Group by title to count episodes (for seen_episodes.csv)
-          const showGroups = {};
-          dataRows.forEach(row => {
+          const headers = rows[0].map(h => h.toLowerCase().trim().replace(/['"_\s-]/g, ''));
+          
+          // Find indices of relevant headers
+          const titleIndex = rows[0].findIndex(h => {
+            const clean = h.toLowerCase().trim().replace(/['"_\s-]/g, '');
+            return [
+              'showname', 'showtitle', 'title', 'tvshowname', 'movietitle', 'moviename', 
+              'name', 'show', 'serie', 'titolo', 'originaltitle', 'originalname'
+            ].includes(clean);
+          });
+          const dateIndex = rows[0].findIndex(h => {
+            const clean = h.toLowerCase().trim().replace(/['"_\s-]/g, '');
+            return [
+              'updatedat', 'date', 'datewatched', 'watchedat', 'createdat', 'timestamp', 
+              'data', 'vistoil', 'creatoil', 'followedat', 'addedat', 'lastwatched', 'watchdate'
+            ].includes(clean);
+          });
+
+          if (titleIndex === -1) {
+            showNotification("Impossibile trovare la colonna del titolo (es. 'show_name', 'title') nel CSV.", "error");
+            return;
+          }
+
+          const dataRows = rows.slice(1).filter(r => r.length > titleIndex && r[titleIndex].trim() !== "");
+          const extracted = dataRows.map(row => {
             const title = row[titleIndex].trim();
             const dateVal = dateIndex !== -1 && row[dateIndex] ? row[dateIndex].trim() : '';
-            
-            if (!showGroups[title]) {
-              showGroups[title] = {
-                episodesCount: 0,
-                dates: []
-              };
-            }
-            showGroups[title].episodesCount++;
-            if (dateVal) {
-              showGroups[title].dates.push(dateVal);
-            }
+            return { title, date: dateVal };
           });
 
-          const importedItems = Object.entries(showGroups).map(([title, info]) => {
-            let latestDate = new Date().toISOString().split('T')[0];
-            if (info.dates.length > 0) {
-              try {
-                const parsedDates = info.dates.map(d => new Date(d)).filter(d => !isNaN(d.getTime()));
-                if (parsedDates.length > 0) {
-                  const maxDate = new Date(Math.max(...parsedDates));
-                  latestDate = maxDate.toISOString().split('T')[0];
-                }
-              } catch (_) {}
-            }
+          importedItems = processExtractedItems(extracted, target);
+        }
 
-            const safeId = `tvtime-tr-${encodeURIComponent(title.toLowerCase()).replace(/%/g, '')}-${Math.random().toString(36).substr(2, 9)}`;
-            return {
-              id: safeId,
-              tmdbId: null,
-              title: title,
-              type: "tv",
-              poster: "",
-              backdrop: "",
-              rating: 5.0,
-              platform: "TV Time",
-              watchDate: latestDate,
-              notes: `Importato da TV Time (${info.episodesCount} episodi visti)`
-            };
-          });
+        if (importedItems.length === 0) {
+          showNotification("Nessun elemento valido trovato da importare.", "error");
+          return;
+        }
 
-          if (importedItems.length === 0) {
-            showNotification("Nessun elemento valido trovato da importare.", "error");
-            return;
-          }
-
-          onImportData(importedItems, 'tracked');
+        onImportData(importedItems, target === 'tracked' ? 'tracked' : 'watchlist');
+        
+        if (target === 'tracked') {
           showNotification(`Importati con successo ${importedItems.length} show da TV Time!`, "success");
         } else {
-          // watchlist (followed_shows.csv)
-          const importedItems = dataRows.map(row => {
-            const title = row[titleIndex].trim();
-            const safeId = `tvtime-wl-${encodeURIComponent(title.toLowerCase()).replace(/%/g, '')}-${Math.random().toString(36).substr(2, 9)}`;
-            return {
-              id: safeId,
-              tmdbId: null,
-              title: title,
-              type: "tv",
-              poster: "",
-              backdrop: "",
-              year: "",
-              imdbRating: "0.0"
-            };
-          });
-
-          // De-duplicate watchlist items
-          const uniqueItems = [];
-          const seenTitles = new Set();
-          importedItems.forEach(item => {
-            const cleanTitle = item.title.toLowerCase();
-            if (!seenTitles.has(cleanTitle)) {
-              seenTitles.add(cleanTitle);
-              uniqueItems.push(item);
-            }
-          });
-
-          if (uniqueItems.length === 0) {
-            showNotification("Nessun elemento valido trovato da importare.", "error");
-            return;
-          }
-
-          onImportData(uniqueItems, 'watchlist');
-          showNotification(`Importati con successo ${uniqueItems.length} show nella watchlist!`, "success");
+          showNotification(`Importati con successo ${importedItems.length} show nella watchlist!`, "success");
         }
       } catch (err) {
-        showNotification("Errore durante il parsing del file CSV.", "error");
+        console.error("Error importing file:", err);
+        showNotification("Errore durante l'importazione del file.", "error");
       }
     };
     reader.readAsText(file);
@@ -965,10 +1097,10 @@ export default function Settings({
 
       {/* TV Time Import Panel */}
       <div className="settings-section">
-        <h2>Importa da TV Time (CSV)</h2>
+        <h2>Importa da TV Time (CSV / JSON)</h2>
         <p className="settings-description">
-          Carica i file CSV esportati da TV Time per migrare i tuoi dati. 
-          Puoi importare la cronologia degli episodi visti (`seen_episodes.csv`) o gli show che segui (`followed_shows.csv`).
+          Carica i file CSV o JSON esportati da TV Time per migrare i tuoi dati. 
+          Puoi importare la cronologia degli episodi visti (`seen_episodes.csv` o JSON) o gli show che segui (`followed_shows.csv` o JSON).
         </p>
         <div className="settings-buttons">
           <button className="btn-outline" onClick={() => tvTimeHistoryInputRef.current?.click()}>
@@ -991,7 +1123,7 @@ export default function Settings({
             type="file" 
             ref={tvTimeHistoryInputRef} 
             style={{ display: 'none' }} 
-            accept=".csv"
+            accept=".csv,.json"
             onChange={(e) => handleTvTimeImport(e, 'tracked')}
           />
 
@@ -999,7 +1131,7 @@ export default function Settings({
             type="file" 
             ref={tvTimeWatchlistInputRef} 
             style={{ display: 'none' }} 
-            accept=".csv"
+            accept=".csv,.json"
             onChange={(e) => handleTvTimeImport(e, 'watchlist')}
           />
         </div>
