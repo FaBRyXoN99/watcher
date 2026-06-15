@@ -717,6 +717,41 @@ export default function DetailsModal({
               </section>
             )}
 
+            {/* Dove guardare */}
+            {dynamicProviders && (streamProviders.length > 0 || rentProviders.length > 0) && (
+              <section className="dm-section">
+                <div className="dm-section-header">
+                  <h2 className="dm-section-title" style={{ margin: 0 }}>Dove guardare</h2>
+                  <a href={dynamicProviders.link || 'https://www.justwatch.com'} target="_blank" rel="noopener noreferrer" className="dm-justwatch-badge">
+                    Fornito da <strong>JustWatch</strong>
+                  </a>
+                </div>
+                {streamProviders.length > 0 && (
+                  <div className="dm-providers-row">
+                    {streamProviders.map((p, i) => (
+                      <div className="dm-provider-chip" key={i}>
+                        {p.logo && p.logo.startsWith('http') ? <img src={p.logo} alt={p.name} className="dm-provider-logo"/> : <span style={{ fontSize: '1.1rem' }}>{p.logo || '❓'}</span>}
+                        <span>{p.name}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {rentProviders.length > 0 && (
+                  <>
+                    <p className="dm-providers-label">Noleggio / Acquisto</p>
+                    <div className="dm-providers-row">
+                      {rentProviders.map((p, i) => (
+                        <div className="dm-provider-chip" key={i}>
+                          {p.logo && p.logo.startsWith('http') ? <img src={p.logo} alt={p.name} className="dm-provider-logo"/> : <span style={{ fontSize: '1.1rem' }}>{p.logo || '❓'}</span>}
+                          <span>{p.name}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </section>
+            )}
+
             {/* TV Stagioni ed Episodi */}
             {item.type === 'tv' && seasonsList.length > 0 && (
               <section className="dm-section">
@@ -807,41 +842,6 @@ export default function DetailsModal({
                       );
                     })}
                   </div>
-                )}
-              </section>
-            )}
-
-            {/* Dove guardare */}
-            {dynamicProviders && (streamProviders.length > 0 || rentProviders.length > 0) && (
-              <section className="dm-section">
-                <div className="dm-section-header">
-                  <h2 className="dm-section-title" style={{ margin: 0 }}>Dove guardare</h2>
-                  <a href={dynamicProviders.link || 'https://www.justwatch.com'} target="_blank" rel="noopener noreferrer" className="dm-justwatch-badge">
-                    Fornito da <strong>JustWatch</strong>
-                  </a>
-                </div>
-                {streamProviders.length > 0 && (
-                  <div className="dm-providers-row">
-                    {streamProviders.map((p, i) => (
-                      <div className="dm-provider-chip" key={i}>
-                        {p.logo && p.logo.startsWith('http') ? <img src={p.logo} alt={p.name} className="dm-provider-logo"/> : <span style={{ fontSize: '1.1rem' }}>{p.logo || '❓'}</span>}
-                        <span>{p.name}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {rentProviders.length > 0 && (
-                  <>
-                    <p className="dm-providers-label">Noleggio / Acquisto</p>
-                    <div className="dm-providers-row">
-                      {rentProviders.map((p, i) => (
-                        <div className="dm-provider-chip" key={i}>
-                          {p.logo && p.logo.startsWith('http') ? <img src={p.logo} alt={p.name} className="dm-provider-logo"/> : <span style={{ fontSize: '1.1rem' }}>{p.logo || '❓'}</span>}
-                          <span>{p.name}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </>
                 )}
               </section>
             )}
