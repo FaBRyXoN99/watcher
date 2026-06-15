@@ -745,13 +745,41 @@ export default function Profile({
       {/* ── Profile Card ─────────────────────────────────────── */}
       <div className="profile-header-card" style={{ position: 'relative', overflow: 'hidden', padding: 0, flexDirection: 'column', alignItems: 'stretch' }}>
 
-        {/* Banner */}
+        {/* 1. Background Image Layer spanning the entire card */}
         <div style={{
-          height: 110,
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
           background: profile.banner
             ? `url(${profile.banner}) center/cover no-repeat`
             : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)',
-          position: 'relative'
+          zIndex: 0,
+          pointerEvents: 'none'
+        }} />
+
+        {/* 2. Blur and Darkening Gradient Overlay to ensure text readability */}
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          // Starts lighter at the top banner area, becomes dark and blends with var(--bg-deep) below 110px
+          background: 'linear-gradient(to bottom, rgba(15, 23, 42, 0.2) 0%, rgba(15, 23, 42, 0.75) 110px, var(--bg-deep) 100%)',
+          backdropFilter: 'blur(10px)',
+          WebkitBackdropFilter: 'blur(10px)',
+          zIndex: 1,
+          pointerEvents: 'none'
+        }} />
+
+        {/* Banner area space holder with controls */}
+        <div style={{
+          height: 110,
+          background: 'transparent',
+          position: 'relative',
+          zIndex: 2
         }}>
           {/* Pencil + Gear buttons top-right of card */}
           <div style={{ position: 'absolute', top: 12, right: 12, display: 'flex', gap: '8px', zIndex: 2 }}>
@@ -788,8 +816,8 @@ export default function Profile({
           </div>
         </div>
 
-        {/* Avatar + info */}
-        <div style={{ padding: '0 24px 24px 24px' }}>
+        {/* Avatar + info (relative and above background layers) */}
+        <div style={{ padding: '0 24px 24px 24px', position: 'relative', zIndex: 2 }}>
           <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', marginTop: '-44px', marginBottom: '14px' }}>
             {/* Avatar */}
             <div style={{ position: 'relative', width: 88, height: 88, flexShrink: 0 }}>
