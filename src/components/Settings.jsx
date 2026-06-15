@@ -163,6 +163,7 @@ export default function Settings({
 
   const [showGoogleLinkModal, setShowGoogleLinkModal] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [showIconGuide, setShowIconGuide] = useState(false);
 
   const handleTokenSubmit = (e) => {
     e.preventDefault();
@@ -782,9 +783,50 @@ export default function Settings({
             </button>
           </div>
         </div>
-        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px' }}>
+        <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px', marginBottom: '8px' }}>
           Formati consigliati: PNG quadrato o JPEG. Max 5 icone personalizzate.
         </p>
+        <button
+          type="button"
+          className="btn-outline"
+          style={{ padding: '6px 12px', fontSize: '0.75rem', width: 'auto', display: 'inline-flex', alignSelf: 'flex-start', marginTop: '8px' }}
+          onClick={() => setShowIconGuide(!showIconGuide)}
+        >
+          {showIconGuide ? 'nascondi guida su come cambiare icona' : 'mostra guida su come cambiare icona'}
+        </button>
+
+        {showIconGuide && (
+          <div style={{
+            textAlign: 'left',
+            fontSize: '0.8rem',
+            color: 'var(--text-grey)',
+            marginTop: '12px',
+            padding: '14px',
+            background: 'rgba(255,255,255,0.02)',
+            borderRadius: '8px',
+            border: '1px dashed var(--border-light)',
+            lineHeight: '1.5'
+          }}>
+            <strong style={{ color: 'var(--text-white)', display: 'block', marginBottom: '6px' }}>Guida per cambiare l'icona dell'applicazione:</strong>
+            <p style={{ margin: '0 0 10px 0' }}>
+              Per fare in modo che l'icona scelta compaia correttamente sul desktop del computer o sulla schermata Home del tuo dispositivo mobile, segui questi passaggi:
+            </p>
+            <ol style={{ paddingLeft: '16px', margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <li>
+                Scegli una delle icone proposte sopra o caricane una personalizzata usando il pulsante <strong>"+"</strong>.
+              </li>
+              <li>
+                <strong style={{ color: 'var(--accent-cyan)' }}>Nota Importante:</strong> L'icona dell'app deve essere selezionata <strong>prima</strong> di creare il collegamento o installare l'app tramite il browser.
+              </li>
+              <li>
+                Dopo aver selezionato la nuova icona, apri il menu del browser (i tre puntini in alto a destra) e seleziona <strong>"Installa Watcher"</strong> o <strong>"Aggiungi a schermata Home / Crea scorciatoia"</strong>.
+              </li>
+              <li>
+                Se l'applicazione è già installata sul tuo dispositivo con una vecchia icona, per aggiornarla dovrai prima rimuovere/disinstallare la scorciatoia esistente, e poi ricrearla/reinstallarla dopo aver selezionato la nuova icona.
+              </li>
+            </ol>
+          </div>
+        )}
       </div>
 
 
