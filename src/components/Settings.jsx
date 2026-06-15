@@ -792,7 +792,7 @@ export default function Settings({
           style={{ padding: '6px 12px', fontSize: '0.75rem', width: 'auto', display: 'inline-flex', alignSelf: 'flex-start', marginTop: '8px' }}
           onClick={() => setShowIconGuide(!showIconGuide)}
         >
-          {showIconGuide ? 'nascondi guida su come cambiare icona' : 'mostra guida su come cambiare icona'}
+          {showIconGuide ? 'Nascondi guida su come cambiare icona' : 'Mostra guida su come cambiare icona'}
         </button>
 
         {showIconGuide && (
