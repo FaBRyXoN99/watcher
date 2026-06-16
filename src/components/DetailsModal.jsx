@@ -853,6 +853,7 @@ export default function DetailsModal({
                     fontSize: '0.75rem',
                     color: seasonIsUpcoming ? 'rgba(255, 159, 10, 0.9)' : 'var(--text-grey)',
                     marginTop: '8px',
+                    marginBottom: '16px',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '6px'
