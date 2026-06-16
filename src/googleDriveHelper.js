@@ -1,187 +1,309 @@
-// googleDriveHelper.js - Google Identity Services & Google Drive API Integration
+// src/googleDriveHelper.js
 
-// Helper to query the Google Drive API for a file
-async function searchBackupFile(accessToken, fileName) {
-  const q = encodeURIComponent(`name = '${fileName}' and trashed = false`);
-  const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files?q=${q}`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+const SCOPES = 'https://www.googleapis.com/auth/drive.file';
+
+let tokenClient;
+let gapiInited = false;
+let gisInited = false;
+let initPromise = null;
+
+const loadScript = (src) => {
+    return new Promise((resolve, reject) => {
+        const existing = document.querySelector(`script[src="${src}"]`);
+        if (existing) {
+            if (existing.getAttribute('data-loaded') === 'true') return resolve();
+            existing.addEventListener('load', resolve);
+            existing.addEventListener('error', reject);
+            return;
+        }
+        const script = document.createElement('script');
+        script.src = src;
+        script.onload = () => {
+            script.setAttribute('data-loaded', 'true');
+            resolve();
+        };
+        script.onerror = reject;
+        document.body.appendChild(script);
+    });
+};
+
+export const getClientId = () => {
+    return localStorage.getItem('watcher_gdrive_client_id') || '691138838101-d043hu3bkjuj5cu629pm9r6fpkh09hgs.apps.googleusercontent.com';
+};
+
+export const initGoogleDrive = () => {
+    console.log('initGoogleDrive called, initPromise:', !!initPromise);
+    if (initPromise) return initPromise;
+    
+    initPromise = (async () => {
+        try {
+            console.log('Loading scripts...');
+            await Promise.all([
+                loadScript('https://apis.google.com/js/api.js'),
+                loadScript('https://accounts.google.com/gsi/client')
+            ]);
+            console.log('Scripts loaded. Loading gapi client...');
+
+            await new Promise((resolve, reject) => {
+                const timeout = setTimeout(() => reject(new Error('gapi.load timed out')), 10000);
+                window.gapi.load('client', {
+                    callback: () => {
+                        clearTimeout(timeout);
+                        resolve();
+                    },
+                    onerror: () => {
+                        clearTimeout(timeout);
+                        reject(new Error('Failed to load gapi client'));
+                    }
+                });
+            });
+            console.log('gapi client loaded. Initializing with discoveryDocs...');
+            await window.gapi.client.init({
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+            });
+            console.log('gapi client initialized.');
+            gapiInited = true;
+
+            console.log('Initializing token client...');
+            tokenClient = window.google.accounts.oauth2.initTokenClient({
+                client_id: getClientId(),
+                scope: SCOPES,
+                callback: '', // defined at request time
+            });
+            gisInited = true;
+            console.log('Google Drive API Initialized successfully');
+            return true;
+        } catch (error) {
+            console.error('Error initializing Google Drive:', error);
+            initPromise = null;
+            return false;
+        }
+    })();
+    
+    return initPromise;
+};
+
+export const restoreSession = async () => {
+    if (!gapiInited || !gisInited) await initGoogleDrive();
+    const stored = localStorage.getItem('watcher_gdrive_token');
+    if (stored) {
+        try {
+            const token = JSON.parse(stored);
+            if (!token.expires_at || Date.now() > (token.expires_at - 300000)) {
+                console.warn('Google Drive token expired, clearing session.');
+                localStorage.removeItem('watcher_gdrive_token');
+                return false;
+            }
+            window.gapi.client.setToken(token);
+            return true;
+        } catch (e) {
+            console.error('Invalid stored token', e);
+            localStorage.removeItem('watcher_gdrive_token');
+        }
     }
-  );
+    return false;
+};
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Errore nella ricerca su Google Drive: ${response.statusText} (${errorText})`);
-  }
+const getToken = () => {
+    return new Promise((resolve, reject) => {
+        if (!tokenClient) return reject('Google Auth not initialized');
 
-  const result = await response.json();
-  if (result.files && result.files.length > 0) {
-    return result.files[0].id;
-  }
-  return null;
-}
+        const currentToken = window.gapi.client.getToken();
+        if (currentToken && currentToken.access_token) {
+            if (currentToken.expires_at && Date.now() < (currentToken.expires_at - 300000)) {
+                return resolve(currentToken);
+            }
+        }
 
-// Helper to download media from a Google Drive file id
-async function loadBackupFromDrive(accessToken, fileId) {
-  const response = await fetch(
-    `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`,
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
-    }
-  );
+        tokenClient.callback = (resp) => {
+            if (resp.error) return reject(resp);
+            resp.expires_at = Date.now() + (resp.expires_in * 1000);
+            window.gapi.client.setToken(resp);
+            localStorage.setItem('watcher_gdrive_token', JSON.stringify(resp));
+            resolve(resp);
+        };
+        tokenClient.requestAccessToken({ prompt: currentToken ? '' : 'consent' });
+    });
+};
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Errore nel download da Google Drive: ${response.statusText} (${errorText})`);
-  }
+export const signIn = () => {
+    console.log('signIn() called. gapiInited:', gapiInited, 'gisInited:', gisInited);
+    
+    const execLogin = (resolve, reject) => {
+        if (window.google && window.google.accounts && window.google.accounts.oauth2) {
+            tokenClient = window.google.accounts.oauth2.initTokenClient({
+                client_id: getClientId(),
+                scope: SCOPES,
+                callback: '',
+            });
+            gisInited = true;
+        }
 
-  return response.json();
-}
-
-// Helper to create or update file content in Google Drive
-async function saveBackupToDrive(accessToken, fileName, fileId, jsonData) {
-  const dataString = JSON.stringify(jsonData, null, 2);
-
-  if (fileId) {
-    // Update existing file (PATCH)
-    const response = await fetch(
-      `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=media`,
-      {
-        method: 'PATCH',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': 'application/json',
-        },
-        body: dataString,
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Errore nel salvataggio su Google Drive (update): ${response.statusText} (${errorText})`);
-    }
-    return await response.json();
-  } else {
-    // Create new file (POST multipart)
-    const boundary = 'boundary_watcher_app_sync';
-    const metadata = {
-      name: fileName,
-      mimeType: 'application/json',
+        if (!tokenClient) {
+            console.error('tokenClient is null!');
+            return reject(new Error('Google Auth not initialized'));
+        }
+        
+        console.log('Setting tokenClient callback...');
+        tokenClient.callback = (resp) => {
+            console.log('tokenClient callback triggered!', resp);
+            if (resp.error) return reject(resp);
+            resp.expires_at = Date.now() + (resp.expires_in * 1000);
+            window.gapi.client.setToken(resp);
+            localStorage.setItem('watcher_gdrive_token', JSON.stringify(resp));
+            resolve(true);
+        };
+        
+        try {
+            console.log('Calling tokenClient.requestAccessToken()...');
+            tokenClient.requestAccessToken({ prompt: 'consent' });
+            console.log('tokenClient.requestAccessToken() call finished (synchronous part).');
+        } catch (e) {
+            console.error('Error in requestAccessToken:', e);
+            reject(e);
+        }
     };
 
-    const body = [
-      `\r\n--${boundary}\r\n`,
-      'Content-Type: application/json; charset=UTF-8\r\n\r\n',
-      JSON.stringify(metadata),
-      `\r\n--${boundary}\r\n`,
-      'Content-Type: application/json\r\n\r\n',
-      dataString,
-      `\r\n--${boundary}--\r\n`
-    ].join('');
-
-    const response = await fetch(
-      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
-      {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          'Content-Type': `multipart/related; boundary=${boundary}`,
-          'Content-Length': body.length.toString(),
-        },
-        body: body,
-      }
-    );
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Errore nel salvataggio su Google Drive (create): ${response.statusText} (${errorText})`);
+    if (!gapiInited || !gisInited) {
+        console.log('Awaiting initGoogleDrive()...');
+        return initGoogleDrive().then(() => {
+            console.log('initGoogleDrive() completed.');
+            return new Promise(execLogin);
+        });
+    } else {
+        return new Promise(execLogin);
     }
+};
+
+export const signOut = () => {
+    const token = window.gapi.client.getToken();
+    if (token !== null) {
+        window.google.accounts.oauth2.revoke(token.access_token, () => {});
+        window.gapi.client.setToken('');
+        localStorage.removeItem('watcher_gdrive_token');
+    }
+};
+
+const findFile = async (filename) => {
+    const query = `name = '${filename}' and trashed = false`;
+    const response = await window.gapi.client.drive.files.list({
+        q: query,
+        fields: 'files(id, name, modifiedTime)',
+        spaces: 'drive',
+    });
+    return response.result.files[0] || null;
+};
+
+const uploadFile = async (name, content, mimeType, fileId = null) => {
+    const metadata = {
+        name: name,
+        mimeType: mimeType,
+    };
+
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', content);
+
+    const accessToken = window.gapi.client.getToken().access_token;
+    let url = 'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart';
+    let method = 'POST';
+
+    if (fileId) {
+        url = `https://www.googleapis.com/upload/drive/v3/files/${fileId}?uploadType=multipart`;
+        method = 'PATCH';
+    }
+
+    const response = await fetch(url, {
+        method: method,
+        headers: new Headers({ 'Authorization': 'Bearer ' + accessToken }),
+        body: form,
+    });
     return await response.json();
-  }
-}
+};
 
-// Fetch Google User Info using current access token
-export async function fetchGoogleUserInfo(accessToken) {
-  const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error(`Errore nel caricamento del profilo Google: ${response.statusText}`);
-  }
-
-  return response.json();
-}
-
-/**
- * Unified Save function: Saves current profile's watcher data to Google Drive.
- * Uses real Drive API if credentials are provided, falls back to Sandbox simulation.
- */
-export async function syncSaveProfileData(clientId, accessToken, profile, data) {
-  if (!clientId || !accessToken) {
-    // Sandbox mock mode
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const mockCloudKey = `watcher_gdrive_mock_backup_${profile.id}`;
-        localStorage.setItem(mockCloudKey, JSON.stringify(data));
-        // Save sync time metadata
-        const metadataKey = `watcher_gdrive_mock_backup_metadata_${profile.id}`;
-        localStorage.setItem(metadataKey, JSON.stringify({ lastSync: new Date().toISOString() }));
-        resolve({ success: true, mode: 'sandbox', lastSync: new Date().toISOString() });
-      }, 1500); // 1.5s visual loader simulation
+const downloadFile = async (fileId) => {
+    const response = await window.gapi.client.drive.files.get({
+        fileId: fileId,
+        alt: 'media',
     });
-  }
+    return response.result;
+};
 
-  // Real Google API mode
-  try {
-    const fileName = `watcher_backup_${profile.id}.json`;
-    const fileId = await searchBackupFile(accessToken, fileName);
-    await saveBackupToDrive(accessToken, fileName, fileId, data);
-    return { success: true, mode: 'real', lastSync: new Date().toISOString() };
-  } catch (error) {
-    console.error("Google Drive Save Error:", error);
-    throw error;
-  }
-}
-
-/**
- * Unified Load function: Loads current profile's watcher data from Google Drive.
- * Uses real Drive API if credentials are provided, falls back to Sandbox simulation.
- */
-export async function syncLoadProfileData(clientId, accessToken, profile) {
-  if (!clientId || !accessToken) {
-    // Sandbox mock mode
-    return new Promise((resolve, reject) => {
-      setTimeout(() => {
-        const mockCloudKey = `watcher_gdrive_mock_backup_${profile.id}`;
-        const stored = localStorage.getItem(mockCloudKey);
-        if (stored) {
-          resolve({ data: JSON.parse(stored), mode: 'sandbox' });
-        } else {
-          reject(new Error("Nessun backup trovato su Google Drive (Sandbox) per questo profilo. Fai prima un'esportazione."));
+export const checkCloudBackupNewer = async (profileId) => {
+    if (!window.gapi.client.getToken()) return { hasCloudBackup: false, isNewer: false };
+    
+    try {
+        const filename = `watcher_backup_${profileId}.json`;
+        const file = await findFile(filename);
+        if (!file) return { hasCloudBackup: false, isNewer: false };
+        
+        const cloudTime = new Date(file.modifiedTime).getTime();
+        
+        let localTime = 0;
+        const storedSyncMeta = localStorage.getItem(`watcher_profile_${profileId}_gdrive_sync_meta`);
+        if (storedSyncMeta) {
+            localTime = new Date(JSON.parse(storedSyncMeta).lastSync).getTime();
         }
-      }, 1500);
-    });
-  }
-
-  // Real Google API mode
-  try {
-    const fileName = `watcher_backup_${profile.id}.json`;
-    const fileId = await searchBackupFile(accessToken, fileName);
-    if (!fileId) {
-      throw new Error(`Nessun backup trovato su Google Drive per il profilo "${profile.name}". Salva prima i dati.`);
+        
+        const isNewer = cloudTime > (localTime + 60000) || localTime === 0; 
+        
+        return {
+            hasCloudBackup: true,
+            isNewer,
+            cloudDate: new Date(cloudTime).toLocaleString()
+        };
+    } catch (e) {
+        console.error('Error checking cloud backup time', e);
+        return { hasCloudBackup: false, isNewer: false };
     }
-    const data = await loadBackupFromDrive(accessToken, fileId);
-    return { data, mode: 'real' };
-  } catch (error) {
-    console.error("Google Drive Load Error:", error);
-    throw error;
-  }
-}
+};
+
+export const syncDataToCloud = async (profileId, trackedItems, watchlist) => {
+    if (!window.gapi || !window.gapi.client || !window.gapi.client.getToken()) await getToken();
+
+    const backupData = {
+        trackedItems,
+        watchlist,
+        exportDate: new Date().toISOString()
+    };
+
+    const filename = `watcher_backup_${profileId}.json`;
+    const dbFile = await findFile(filename);
+    const dbFileId = dbFile ? dbFile.id : null;
+
+    const blob = new Blob([JSON.stringify(backupData, null, 2)], { type: 'application/json' });
+    await uploadFile(filename, blob, 'application/json', dbFileId);
+    
+    const syncTime = new Date().toISOString();
+    localStorage.setItem(`watcher_profile_${profileId}_gdrive_sync_meta`, JSON.stringify({ lastSync: syncTime }));
+    
+    return syncTime;
+};
+
+export const fetchFromCloud = async (profileId) => {
+    if (!window.gapi || !window.gapi.client || !window.gapi.client.getToken()) await getToken();
+
+    const filename = `watcher_backup_${profileId}.json`;
+    const file = await findFile(filename);
+    if (file) {
+        return await downloadFile(file.id);
+    }
+    return null;
+};
+
+// Debounce helper for auto-sync
+let debounceTimer;
+export const autoSyncToCloud = async (profileId, trackedItems, watchlist) => {
+    const isAutoSync = localStorage.getItem(`watcher_profile_${profileId}_autosync`) !== 'false';
+    if (!isAutoSync) return;
+
+    const hasToken = gapiInited && window.gapi && window.gapi.client && window.gapi.client.getToken && window.gapi.client.getToken();
+    if (!hasToken) return;
+
+    clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+        syncDataToCloud(profileId, trackedItems, watchlist)
+            .then(() => console.log('Auto-sync completato'))
+            .catch(err => console.error('Auto-sync fallito:', err));
+    }, 5000); // 5 second debounce
+};

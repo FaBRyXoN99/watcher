@@ -6,12 +6,12 @@ import Profile from './components/Profile';
 import DetailsModal from './components/DetailsModal';
 import ProfileSelection from './components/ProfileSelection';
 import AddToCollectionModal from './components/AddToCollectionModal';
-import { syncSaveProfileData, syncLoadProfileData } from './googleDriveHelper';
 import { HomeIcon } from './components/icons/HomeIcon';
 import { TimerIcon } from './components/icons/TimerIcon';
 import { ClapIcon } from './components/icons/ClapIcon';
 import { UserIcon } from './components/icons/UserIcon';
 import { MOCK_MEDIA } from './mockData';
+import { restoreSession, autoSyncToCloud } from './googleDriveHelper';
 
 const TMDB_IMG = (path, size = 'w500') =>
   path ? `https://image.tmdb.org/t/p/${size}${path}` : '';
@@ -36,15 +36,26 @@ export default function App() {
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [notification, setNotification] = useState(null);
   const [profileSubPage, setProfileSubPage] = useState(null);
-  const [googleClientId, setGoogleClientId] = useState(localStorage.getItem('watcher_google_client_id') || '');
-  const [googleAccessToken, setGoogleAccessToken] = useState('');
-  const [googleSyncStatus, setGoogleSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'success' | 'error'
-  const [lastGoogleSync, setLastGoogleSync] = useState('');
   const [themeColor, setThemeColor] = useState('#3eeefc');
 
   useEffect(() => {
     document.documentElement.style.setProperty('--theme-color', themeColor);
   }, [themeColor]);
+
+  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+
+  // Check for existing Google Drive session
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const restored = await restoreSession();
+        if (restored) setIsGoogleConnected(true);
+      } catch (e) {
+        console.error('Session restore failed', e);
+      }
+    };
+    checkSession();
+  }, []);
 
   const [mediaLoading, setMediaLoading] = useState(false);
 
@@ -283,15 +294,6 @@ export default function App() {
       }
     }
 
-    // 5. Google Sync Meta
-    const storedSyncMeta = localStorage.getItem(`watcher_profile_${profileId}_gdrive_sync_meta`);
-    if (storedSyncMeta) {
-      const meta = JSON.parse(storedSyncMeta);
-      setLastGoogleSync(meta.lastSync || '');
-    } else {
-      setLastGoogleSync('');
-    }
-
     // 6. Collections
     const storedCollections = localStorage.getItem(`watcher_profile_${profileId}_collections`);
     if (storedCollections) {
@@ -314,6 +316,7 @@ export default function App() {
     setTrackedItems(items);
     if (activeProfile) {
       localStorage.setItem(`watcher_profile_${activeProfile.id}_tracked_items`, JSON.stringify(items));
+      autoSyncToCloud(activeProfile.id, items, watchlist);
     }
   };
 
@@ -322,6 +325,7 @@ export default function App() {
     setWatchlist(items);
     if (activeProfile) {
       localStorage.setItem(`watcher_profile_${activeProfile.id}_watchlist`, JSON.stringify(items));
+      autoSyncToCloud(activeProfile.id, trackedItems, items);
     }
   };
 
@@ -535,167 +539,6 @@ export default function App() {
     }
   };
 
-  // Helper to request access token via Google Identity Services
-  const requestGoogleToken = (callback) => {
-    if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
-      showNotification("Le API di Google non sono caricate nel browser.", "error");
-      return;
-    }
-    const client = window.google.accounts.oauth2.initTokenClient({
-      client_id: googleClientId,
-      scope: 'https://www.googleapis.com/auth/drive.file email profile openid',
-      callback: (response) => {
-        if (response.error) {
-          showNotification("Accesso Google annullato o non autorizzato.", "error");
-          return;
-        }
-        setGoogleAccessToken(response.access_token);
-        if (callback) callback(response.access_token);
-      }
-    });
-    client.requestAccessToken();
-  };
-
-  const handleSaveToGoogleDrive = async (token = googleAccessToken) => {
-    if (!googleClientId) {
-      // Sandbox fallback
-      setGoogleSyncStatus('syncing');
-      try {
-        const backupData = {
-          tracked_items: trackedItems,
-          watchlist: watchlist,
-          stats_config: statsConfig,
-          tmdb_token: tmdbToken,
-          collections: collections,
-          theme_color: themeColor
-        };
-        const res = await syncSaveProfileData('', '', activeProfile, backupData);
-        setGoogleSyncStatus('idle');
-        setLastGoogleSync(res.lastSync);
-        localStorage.setItem(`watcher_profile_${activeProfile.id}_gdrive_sync_meta`, JSON.stringify({ lastSync: res.lastSync }));
-        showNotification("Backup salvato su Google Drive (Sandbox)!", "success");
-      } catch (err) {
-        setGoogleSyncStatus('idle');
-        showNotification("Errore nel salvataggio del backup (Sandbox).", "error");
-      }
-      return;
-    }
-
-    if (!token) {
-      requestGoogleToken((obtainedToken) => {
-        handleSaveToGoogleDrive(obtainedToken);
-      });
-      return;
-    }
-
-    setGoogleSyncStatus('syncing');
-    try {
-      const backupData = {
-        tracked_items: trackedItems,
-        watchlist: watchlist,
-        stats_config: statsConfig,
-        tmdb_token: tmdbToken,
-        collections: collections,
-        theme_color: themeColor
-      };
-      const res = await syncSaveProfileData(googleClientId, token, activeProfile, backupData);
-      setGoogleSyncStatus('idle');
-      setLastGoogleSync(res.lastSync);
-      localStorage.setItem(`watcher_profile_${activeProfile.id}_gdrive_sync_meta`, JSON.stringify({ lastSync: res.lastSync }));
-      showNotification("Backup salvato su Google Drive!", "success");
-    } catch (err) {
-      setGoogleSyncStatus('idle');
-      setGoogleAccessToken('');
-      showNotification("Errore di sincronizzazione con Google Drive. Riprova.", "error");
-    }
-  };
-
-  const handleLoadFromGoogleDrive = async (token = googleAccessToken) => {
-    if (!googleClientId) {
-      // Sandbox fallback
-      setGoogleSyncStatus('syncing');
-      try {
-        const res = await syncLoadProfileData('', '', activeProfile);
-        setGoogleSyncStatus('idle');
-        if (res.data) {
-          if (res.data.tracked_items) {
-            setTrackedItems(res.data.tracked_items);
-            localStorage.setItem(`watcher_profile_${activeProfile.id}_tracked_items`, JSON.stringify(res.data.tracked_items));
-          }
-          if (res.data.watchlist) {
-            setWatchlist(res.data.watchlist);
-            localStorage.setItem(`watcher_profile_${activeProfile.id}_watchlist`, JSON.stringify(res.data.watchlist));
-          }
-          if (res.data.stats_config) {
-            setStatsConfig(res.data.stats_config);
-            localStorage.setItem(`watcher_profile_${activeProfile.id}_stats_config`, JSON.stringify(res.data.stats_config));
-          }
-          if (res.data.tmdb_token !== undefined) {
-            setTmdbToken(res.data.tmdb_token);
-            localStorage.setItem(`watcher_profile_${activeProfile.id}_tmdb_token`, res.data.tmdb_token);
-          }
-          if (res.data.collections) {
-            setCollections(res.data.collections);
-            localStorage.setItem(`watcher_profile_${activeProfile.id}_collections`, JSON.stringify(res.data.collections));
-          }
-          if (res.data.theme_color) {
-            setThemeColor(res.data.theme_color);
-            localStorage.setItem(`watcher_profile_${activeProfile.id}_theme_color`, res.data.theme_color);
-          }
-          showNotification("Backup ripristinato da Google Drive (Sandbox)!", "success");
-        }
-      } catch (err) {
-        setGoogleSyncStatus('idle');
-        showNotification(err.message, "error");
-      }
-      return;
-    }
-
-    if (!token) {
-      requestGoogleToken((obtainedToken) => {
-        handleLoadFromGoogleDrive(obtainedToken);
-      });
-      return;
-    }
-
-    setGoogleSyncStatus('syncing');
-    try {
-      const res = await syncLoadProfileData(googleClientId, token, activeProfile);
-      setGoogleSyncStatus('idle');
-      if (res.data) {
-        if (res.data.tracked_items) {
-          setTrackedItems(res.data.tracked_items);
-          localStorage.setItem(`watcher_profile_${activeProfile.id}_tracked_items`, JSON.stringify(res.data.tracked_items));
-        }
-        if (res.data.watchlist) {
-          setWatchlist(res.data.watchlist);
-          localStorage.setItem(`watcher_profile_${activeProfile.id}_watchlist`, JSON.stringify(res.data.watchlist));
-        }
-        if (res.data.stats_config) {
-          setStatsConfig(res.data.stats_config);
-          localStorage.setItem(`watcher_profile_${activeProfile.id}_stats_config`, JSON.stringify(res.data.stats_config));
-        }
-        if (res.data.tmdb_token !== undefined) {
-          setTmdbToken(res.data.tmdb_token);
-          localStorage.setItem(`watcher_profile_${activeProfile.id}_tmdb_token`, res.data.tmdb_token);
-        }
-        if (res.data.collections) {
-          setCollections(res.data.collections);
-          localStorage.setItem(`watcher_profile_${activeProfile.id}_collections`, JSON.stringify(res.data.collections));
-        }
-        if (res.data.theme_color) {
-          setThemeColor(res.data.theme_color);
-          localStorage.setItem(`watcher_profile_${activeProfile.id}_theme_color`, res.data.theme_color);
-        }
-        showNotification("Backup caricato da Google Drive con successo!", "success");
-      }
-    } catch (err) {
-      setGoogleSyncStatus('idle');
-      setGoogleAccessToken('');
-      showNotification(err.message || "Errore nel caricamento del backup da Drive.", "error");
-    }
-  };
-
   // Reset active profile data
   const handleResetData = () => {
     if (!activeProfile) return;
@@ -819,8 +662,8 @@ export default function App() {
     setProfiles(updatedProfiles);
     localStorage.setItem('watcher_profiles', JSON.stringify(updatedProfiles));
     
-    // Auto-select if first profile or if it is Google-linked
-    if (updatedProfiles.length === 1 || newProfile.isGoogleLinked) {
+    // Auto-select if first profile
+    if (updatedProfiles.length === 1) {
       handleSelectProfile(newProfile);
     } else {
       showNotification(`Profilo "${newProfile.name}" creato!`, 'success');
@@ -969,14 +812,6 @@ export default function App() {
             onSelectProfile={handleSelectProfile} 
             onCreateProfile={handleCreateProfile} 
             onDeleteProfile={handleDeleteProfile} 
-            googleClientId={googleClientId}
-            googleAccessToken={googleAccessToken}
-            onSetGoogleAccessToken={setGoogleAccessToken}
-            requestGoogleToken={requestGoogleToken}
-            onSaveGoogleClientId={(id) => {
-              setGoogleClientId(id);
-              localStorage.setItem('watcher_google_client_id', id);
-            }}
           />
         )}
 
@@ -1002,18 +837,6 @@ export default function App() {
             onClearSubPage={() => setProfileSubPage(null)}
             onExportAll={handleExportAll}
             onImportAll={handleImportAll}
-            googleClientId={googleClientId}
-            onSaveGoogleClientId={(id) => {
-              setGoogleClientId(id);
-              localStorage.setItem('watcher_google_client_id', id);
-            }}
-            googleAccessToken={googleAccessToken}
-            onSetGoogleAccessToken={setGoogleAccessToken}
-            requestGoogleToken={requestGoogleToken}
-            googleSyncStatus={googleSyncStatus}
-            lastGoogleSync={lastGoogleSync}
-            onSaveToGoogleDrive={handleSaveToGoogleDrive}
-            onLoadFromGoogleDrive={handleLoadFromGoogleDrive}
           />
         )}
       </main>

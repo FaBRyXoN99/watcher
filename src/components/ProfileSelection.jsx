@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { fetchGoogleUserInfo } from '../googleDriveHelper';
+import React, { useState } from 'react';
 
 const PREDEFINED_AVATARS = [
   'https://api.dicebear.com/7.x/adventurer/svg?seed=Fred&backgroundColor=b6e3f4',
@@ -50,23 +49,11 @@ function compressImage(file, callback) {
 export default function ProfileSelection({ 
   profiles, 
   onSelectProfile, 
-  onCreateProfile, 
-  onDeleteProfile,
-  googleClientId,
-  googleAccessToken,
-  onSetGoogleAccessToken,
-  requestGoogleToken,
-  onSaveGoogleClientId
+  onCreateProfile,
+  onDeleteProfile
 }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [showGoogleConfigModal, setShowGoogleConfigModal] = useState(false);
   const [isManageMode, setIsManageMode] = useState(false);
-  const [localClientId, setLocalClientId] = useState(googleClientId || '');
-  const [showInstructions, setShowInstructions] = useState(false);
-
-  useEffect(() => {
-    setLocalClientId(googleClientId || '');
-  }, [googleClientId]);
   
   // Create profile form states
   const [name, setName] = useState('');
@@ -74,26 +61,7 @@ export default function ProfileSelection({
   const [selectedAvatar, setSelectedAvatar] = useState(PREDEFINED_AVATARS[0]);
   const [customAvatar, setCustomAvatar] = useState('');
 
-  const handleGoogleLoginSelect = (account) => {
-    // Check if a profile with this email or name already exists
-    const existing = profiles.find(p => p.googleEmail === account.email || p.name.toLowerCase() === account.name.toLowerCase());
-    
-    if (existing) {
-      onSelectProfile(existing);
-    } else {
-      // Create a Google-linked profile
-      const newProfile = {
-        id: `google-${Date.now()}`,
-        name: account.name,
-        username: `@${account.email.split('@')[0]}`,
-        avatar: account.avatar,
-        banner: '',
-        isGoogleLinked: true,
-        googleEmail: account.email
-      };
-      onCreateProfile(newProfile);
-    }
-  };
+
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -152,16 +120,6 @@ export default function ProfileSelection({
             )}
             <div className="profile-avatar-bubble" style={{ position: 'relative' }}>
               <img src={p.avatar} alt={p.name} />
-              {p.isGoogleLinked && (
-                <div className="profile-google-badge" title="Collegato con Google">
-                  <svg width="12" height="12" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.69a5.74 5.74 0 0 1-2.48 3.77v3.13h4.02c2.35-2.16 3.7-5.34 3.7-8.75z"/>
-                    <path fill="#34A853" d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-4.02-3.13c-1.12.75-2.55 1.19-3.94 1.19-3.03 0-5.6-2.05-6.51-4.82H1.36v3.23C3.34 21.6 7.4 24 12 24z"/>
-                    <path fill="#FBBC05" d="M5.49 14.33c-.23-.69-.36-1.42-.36-2.18s.13-1.49.36-2.18v-3.23H1.36C.49 8.5 0 10.19 0 12s.49 3.5 1.36 5.18l4.13-3.23z"/>
-                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.96 1.19 15.24 0 12 0 7.4 0 3.34 2.4 1.36 6.37l4.13 3.23c.91-2.77 3.48-4.85 6.51-4.85z"/>
-                  </svg>
-                </div>
-              )}
             </div>
             <span className="profile-name-label">{p.name}</span>
           </div>

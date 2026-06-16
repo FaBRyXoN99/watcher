@@ -624,16 +624,7 @@ export default function Profile({
   initialSubPage,
   onClearSubPage,
   onExportAll,
-  onImportAll,
-  googleClientId,
-  onSaveGoogleClientId,
-  googleAccessToken,
-  onSetGoogleAccessToken,
-  requestGoogleToken,
-  googleSyncStatus,
-  lastGoogleSync,
-  onSaveToGoogleDrive,
-  onLoadFromGoogleDrive
+  onImportAll
 }) {
   // Sub-page state: null = home profile, 'stats' = full stats, 'settings' = settings
   const [subPage, setSubPage] = useState(initialSubPage || null);
@@ -707,15 +698,6 @@ export default function Profile({
           onSaveStatsConfig={onSaveStatsConfig}
           onExportAll={onExportAll}
           onImportAll={onImportAll}
-          googleClientId={googleClientId}
-          onSaveGoogleClientId={onSaveGoogleClientId}
-          googleAccessToken={googleAccessToken}
-          onSetGoogleAccessToken={onSetGoogleAccessToken}
-          requestGoogleToken={requestGoogleToken}
-          googleSyncStatus={googleSyncStatus}
-          lastGoogleSync={lastGoogleSync}
-          onSaveToGoogleDrive={onSaveToGoogleDrive}
-          onLoadFromGoogleDrive={onLoadFromGoogleDrive}
           onSwitchProfile={onSwitchProfile}
         />
       </div>
@@ -845,19 +827,9 @@ export default function Profile({
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <h2 style={{ fontSize: '1.35rem', fontWeight: 700, marginBottom: '2px' }}>{profile.name}</h2>
-              {profile.isGoogleLinked && (
-                <span title={`Collegato a Google: ${profile.googleEmail}`} style={{ display: 'inline-flex', background: '#fff', borderRadius: '50%', padding: '4px', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }}>
-                  <svg width="12" height="12" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.69a5.74 5.74 0 0 1-2.48 3.77v3.13h4.02c2.35-2.16 3.7-5.34 3.7-8.75z"/>
-                    <path fill="#34A853" d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-4.02-3.13c-1.12.75-2.55 1.19-3.94 1.19-3.03 0-5.6-2.05-6.51-4.82H1.36v3.23C3.34 21.6 7.4 24 12 24z"/>
-                    <path fill="#FBBC05" d="M5.49 14.33c-.23-.69-.36-1.42-.36-2.18s.13-1.49.36-2.18v-3.23H1.36C.49 8.5 0 10.19 0 12s.49 3.5 1.36 5.18l4.13-3.23z"/>
-                    <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.96 1.19 15.24 0 12 0 7.4 0 3.34 2.4 1.36 6.37l4.13 3.23c.91-2.77 3.48-4.85 6.51-4.85z"/>
-                  </svg>
-                </span>
-              )}
             </div>
             <span style={{ fontSize: '0.82rem', color: 'var(--text-grey)' }}>
-              {profile.isGoogleLinked ? `Google: ${profile.googleEmail}` : profile.username}
+              {profile.username}
             </span>
           </div>
 

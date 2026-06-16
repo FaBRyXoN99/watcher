@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { signIn, signOut, restoreSession, checkCloudBackupNewer, syncDataToCloud, fetchFromCloud, getClientId } from '../googleDriveHelper';
 
 // Auto-detect CSV separator (comma, semicolon, tab)
 function detectSeparator(text) {
@@ -140,30 +141,95 @@ export default function Settings({
   onSaveStatsConfig,
   onExportAll,
   onImportAll,
-  googleClientId,
-  onSaveGoogleClientId,
-  googleAccessToken,
-  onSetGoogleAccessToken,
-  requestGoogleToken,
-  googleSyncStatus,
-  lastGoogleSync,
-  onSaveToGoogleDrive,
-  onLoadFromGoogleDrive,
   onSwitchProfile,
   onBack
 }) {
-  const [clientIdInput, setClientIdInput] = useState(googleClientId);
-
-  useEffect(() => {
-    setClientIdInput(googleClientId);
-  }, [googleClientId]);
   const fileInputRef = useRef(null);
   const tvTimeHistoryInputRef = useRef(null);
   const tvTimeWatchlistInputRef = useRef(null);
 
-  const [showGoogleLinkModal, setShowGoogleLinkModal] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
   const [showIconGuide, setShowIconGuide] = useState(false);
+
+  // Google Drive states
+  const [isGoogleConnected, setIsGoogleConnected] = useState(false);
+  const [autoSync, setAutoSync] = useState(() => {
+    return localStorage.getItem(`watcher_profile_${profile.id}_autosync`) !== 'false';
+  });
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const restored = await restoreSession();
+        if (restored) setIsGoogleConnected(true);
+      } catch (e) {
+        console.error('Session restore failed', e);
+      }
+    };
+    checkSession();
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    console.log("Button clicked! handleGoogleLogin started");
+    try {
+      console.log("Calling signIn()...");
+      await signIn();
+      console.log("signIn() finished");
+      setIsGoogleConnected(true);
+      
+      showNotification('Controllo backup in corso...', 'info');
+      const backupInfo = await checkCloudBackupNewer(profile.id);
+      
+      if (backupInfo && backupInfo.hasCloudBackup && backupInfo.isNewer) {
+        showNotification(`Attenzione: nel cloud è presente un backup del ${backupInfo.cloudDate}, che è più recente dei tuoi dati locali. Ti consigliamo di scaricarlo.`, 'warning');
+      } else {
+        showNotification('Account Google collegato correttamente!', 'success');
+      }
+    } catch (e) {
+      console.error(e);
+      showNotification('Login fallito: ' + (e.message || e), 'error');
+    }
+  };
+
+  const handleGoogleLogout = async () => {
+    try {
+      signOut();
+      setIsGoogleConnected(false);
+      showNotification('Disconnesso da Google Drive.');
+    } catch (e) { console.error(e); }
+  };
+
+  const handleSyncData = async (direction) => {
+    if (!isGoogleConnected) return showNotification('Connettiti prima a Google Drive.', 'error');
+
+    try {
+      if (direction === 'push') {
+        showNotification('Caricamento dati in corso...', 'info');
+        await syncDataToCloud(profile.id, trackedItems, JSON.parse(localStorage.getItem(`watcher_profile_${profile.id}_watchlist`)));
+        showNotification('Dati sincronizzati con successo su Drive!', 'success');
+      } else {
+        showNotification('Scaricamento dati in corso...', 'info');
+        const backupData = await fetchFromCloud(profile.id);
+        if (backupData) {
+            onImportData(backupData.trackedItems || []);
+            // Seleziona anche la watchlist se l'architettura lo permette (gestita separatamente in questa app)
+            if (backupData.watchlist) {
+                localStorage.setItem(`watcher_profile_${profile.id}_watchlist`, JSON.stringify(backupData.watchlist));
+            }
+            showNotification('Dati scaricati da Drive e importati con successo!', 'success');
+        } else {
+            showNotification('Nessun backup trovato su Drive per questo profilo.', 'error');
+        }
+      }
+    } catch (e) {
+      showNotification('Sync fallito: ' + e.message, 'error');
+    }
+  };
+
+  const handleToggleAutoSync = (e) => {
+    const val = e.target.checked;
+    setAutoSync(val);
+    localStorage.setItem(`watcher_profile_${profile.id}_autosync`, val);
+  };
 
   const handleTokenSubmit = (e) => {
     e.preventDefault();
@@ -237,36 +303,7 @@ export default function Settings({
     e.target.value = null;
   };
 
-  const handleLinkGoogleSelect = (acc) => {
-    onSaveProfile({
-      isGoogleLinked: true,
-      googleEmail: acc.email,
-      avatar: acc.avatar
-    });
-    setShowGoogleLinkModal(false);
-    showNotification("Profilo collegato a Google!", "success");
-  };
 
-  const handleLinkGoogleCustomSubmit = (e) => {
-    e.preventDefault();
-    const nameVal = e.target.googleName.value.trim();
-    const emailVal = e.target.googleEmail.value.trim();
-    if (!nameVal || !emailVal) return;
-    
-    handleLinkGoogleSelect({
-      name: nameVal,
-      email: emailVal,
-      avatar: `https://api.dicebear.com/7.x/adventurer/svg?seed=${encodeURIComponent(nameVal)}&backgroundColor=b6e3f4`
-    });
-  };
-
-  const handleUnlinkGoogle = () => {
-    onSaveProfile({
-      isGoogleLinked: false,
-      googleEmail: null
-    });
-    showNotification("Profilo scollegato da Google.", "success");
-  };
 
   const handleTvTimeImport = (e, target) => {
     const file = e.target.files[0];
@@ -829,170 +866,106 @@ export default function Settings({
         )}
       </div>
 
-
-
       <div className="settings-section">
-        <div style={{ paddingTop: '8px' }}>
-          <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '8px' }}>Configurazione Google OAuth Client ID</h3>
-          <p style={{ fontSize: '0.78rem', color: 'var(--text-grey)', marginBottom: '12px', lineHeight: 1.4 }}>
-            Inserisci il tuo <strong>Google OAuth Client ID</strong> per autenticarti con il tuo vero account Google e salvare i dati su Google Drive. 
-            Se lasciato vuoto, l'applicazione userà la modalità <strong>Sandbox simulata</strong>.
-          </p>
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
-            <input
-              type="text"
-              className="custom-input"
-              style={{ fontSize: '0.85rem', padding: '10px 14px' }}
-              placeholder="es. xxxxxxxx.apps.googleusercontent.com"
-              value={clientIdInput}
-              onChange={(e) => setClientIdInput(e.target.value)}
-            />
-            <button
-              type="button"
-              className="btn-primary"
-              style={{ width: 'auto', padding: '0 20px', fontSize: '0.85rem', flexShrink: 0 }}
-              onClick={() => {
-                onSaveGoogleClientId(clientIdInput.trim());
-                showNotification("Google Client ID aggiornato!", "success");
-              }}
-            >
-              Salva
-            </button>
-          </div>
+        <h3 style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '8px' }}>☁️ Google Drive Sync</h3>
 
-          <button
-            type="button"
-            className="btn-outline"
-            style={{ padding: '6px 12px', fontSize: '0.75rem', width: 'auto', display: 'inline-flex', alignSelf: 'flex-start' }}
-            onClick={() => setShowGuide(!showGuide)}
-          >
-            {showGuide ? 'Nascondi Guida di Configurazione' : 'Mostra Guida di Configurazione'}
-          </button>
-
-          {showGuide && (
-            <div style={{
-              textAlign: 'left',
-              fontSize: '0.8rem',
-              color: 'var(--text-grey)',
-              marginTop: '12px',
-              padding: '14px',
-              background: 'rgba(255,255,255,0.02)',
-              borderRadius: '8px',
-              border: '1px dashed var(--border-light)',
-              lineHeight: '1.5'
-            }}>
-              <strong style={{ color: 'var(--text-white)', display: 'block', marginBottom: '6px' }}>Come ottenere un Client ID Google:</strong>
-              <ol style={{ paddingLeft: '16px', margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <li>Accedi alla <a href="https://console.cloud.google.com/" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>Google Cloud Console</a>.</li>
-                <li>Crea un nuovo progetto per la tua istanza.</li>
-                <li>Configura la <strong>Schermata consenso OAuth</strong> (seleziona tipo <em>Esterno</em>, e aggiungi lo scope <code>.../auth/drive.file</code> per salvare i dati su Drive).</li>
-                <li>Vai su <strong>Credenziali</strong> &gt; <strong>Crea credenziali</strong> &gt; <strong>ID client OAuth</strong>.</li>
-                <li>Seleziona <strong>Applicazione web</strong> come tipo di applicazione.</li>
-                <li>Aggiungi alle <strong>Origini JavaScript autorizzate</strong>:
-                  <ul style={{ paddingLeft: '14px', margin: '4px 0', listStyleType: 'disc', color: 'var(--text-white)' }}>
-                    <li><code>http://localhost:5173</code> (per test locali)</li>
-                    <li><code>https://&lt;tuo-username&gt;.github.io</code> (per GitHub Pages)</li>
-                  </ul>
-                </li>
-                <li>Copia l'ID client generato e incollalo qui sopra, quindi clicca su Salva.</li>
-              </ol>
+        {!isGoogleConnected ? (
+          <div style={{ padding: '20px 0' }}>
+            <p style={{ fontSize: '0.78rem', color: 'var(--text-grey)', marginBottom: '24px', lineHeight: 1.4, textAlign: 'left' }}>
+              Collega il tuo account Google per sincronizzare le serie e i film aggiunti su tutti i tuoi dispositivi (salvataggio su Google Drive).
+            </p>
+            <div style={{ textAlign: 'center' }}>
+              <button 
+                onClick={handleGoogleLogin}
+                style={{
+                  background: '#4285F4', 
+                  color: 'white', 
+                  border: 'none', 
+                  padding: '12px 24px', 
+                  borderRadius: '12px', 
+                  fontSize: '16px', 
+                  fontWeight: 'bold', 
+                  cursor: 'pointer', 
+                  display: 'inline-flex', 
+                  alignItems: 'center', 
+                  gap: '12px',
+                  boxShadow: '0 4px 6px rgba(0,0,0,0.2)'
+                }}
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#fff"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#fff"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.26.81-.58z" fill="#fff"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#fff"/></svg>
+                Connetti Google Drive
+              </button>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Google Drive Sincronizzazione */}
-      {profile && (
-        <div className="settings-section">
-          <h2>Sincronizzazione Google Drive</h2>
-          <p className="settings-description">
-            Salva ed effettua il ripristino dei dati del tuo profilo direttamente sul tuo account Google Drive personale.
-            I dati verranno salvati in un file chiamato <code>watcher_backup_{profile.id}.json</code>.
-          </p>
-          
-          <div style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px',
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid var(--border-light)',
-            borderRadius: '12px',
-            padding: '16px'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-              <div>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-grey)', display: 'block' }}>Stato Sincronizzazione:</span>
-                <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-white)' }}>
-                  {googleSyncStatus === 'syncing' ? (
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '6px', color: 'var(--accent-cyan)' }}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" style={{ animation: 'spin 1s linear infinite' }}>
-                        <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
-                      </svg>
-                      Sincronizzazione in corso...
-                    </span>
-                  ) : googleClientId ? (
-                    <span style={{ color: 'var(--accent-green)' }}>Collegato a Google Drive (Reale)</span>
-                  ) : (
-                    <span style={{ color: 'var(--accent-orange)' }}>Attivo in modalità Sandbox (Locale)</span>
-                  )}
-                </span>
+          </div>
+        ) : (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px', paddingBottom: '16px', borderBottom: '1px solid var(--border-light)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--accent-green)', fontWeight: 'bold' }}>
+                <span style={{ width: '10px', height: '10px', background: 'currentColor', borderRadius: '50%' }}></span>
+                Account Collegato
               </div>
-              {lastGoogleSync && (
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: '0.8rem', color: 'var(--text-grey)' }}>Ultimo salvataggio:</span>
-                  <span style={{ fontSize: '0.8rem', display: 'block', fontWeight: 500 }}>
-                    {new Date(lastGoogleSync).toLocaleString('it-IT')}
-                  </span>
-                </div>
-              )}
+              <button 
+                onClick={handleGoogleLogout}
+                style={{ background: 'transparent', border: '1px solid var(--border-light)', color: 'var(--text-white)', padding: '6px 12px', borderRadius: '12px', cursor: 'pointer', fontSize: '12px' }}
+              >
+                Disconnetti
+              </button>
             </div>
             
-            <div style={{ display: 'flex', gap: '10px', marginTop: '4px' }}>
-              <button
-                type="button"
-                className="btn-outline"
-                disabled={googleSyncStatus === 'syncing'}
-                onClick={() => onSaveToGoogleDrive()}
-                style={{
-                  background: 'rgba(62, 238, 252, 0.1)',
-                  borderColor: 'rgba(62, 238, 252, 0.3)',
-                  color: 'var(--accent-green)'
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                Salva su Drive
-              </button>
-              
-              <button
-                type="button"
-                className="btn-outline"
-                disabled={googleSyncStatus === 'syncing'}
-                onClick={() => {
-                  if (window.confirm("Sei sicuro di voler caricare i dati da Google Drive? Questo sovrascriverà la tua lista locale attuale per questo profilo.")) {
-                    onLoadFromGoogleDrive();
-                  }
-                }}
-                style={{
-                  background: 'rgba(44, 242, 255, 0.1)',
-                  borderColor: 'rgba(44, 242, 255, 0.3)',
-                  color: 'var(--accent-cyan)'
-                }}
-              >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                  <polyline points="17 14 12 19 7 14" />
-                  <line x1="12" y1="19" x2="12" y2="5" />
-                </svg>
-                Ripristina da Drive
-              </button>
+            <div style={{ background: 'rgba(255,255,255,0.03)', padding: '12px', borderRadius: '12px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid var(--border-light)' }}>
+              <div>
+                <div style={{ fontWeight: 'bold', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  🔄 Sincronizzazione Automatica
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--text-grey)' }}>
+                  Carica le modifiche su Drive pochi secondi dopo ogni cambiamento.
+                </div>
+              </div>
+              <label style={{ position: 'relative', display: 'inline-block', width: '40px', height: '24px' }}>
+                <input 
+                  type="checkbox" 
+                  checked={autoSync} 
+                  onChange={handleToggleAutoSync}
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+                <span style={{
+                  position: 'absolute', cursor: 'pointer', top: 0, left: 0, right: 0, bottom: 0, 
+                  backgroundColor: autoSync ? 'var(--accent-cyan)' : '#ccc', 
+                  transition: '.4s', borderRadius: '24px'
+                }}></span>
+                <span style={{
+                  position: 'absolute', height: '16px', width: '16px', left: '4px', bottom: '4px', 
+                  backgroundColor: 'white', transition: '.4s', borderRadius: '50%',
+                  transform: autoSync ? 'translateX(16px)' : 'translateX(0)'
+                }}></span>
+              </label>
+            </div>
+
+            <div>
+              <h4 style={{ margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                📑 Dati Watcher
+              </h4>
+              <p style={{ fontSize: '12px', color: 'var(--text-grey)', marginBottom: '12px' }}>
+                Sincronizza le serie, film, e watchlist sul cloud.
+              </p>
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button 
+                  onClick={() => handleSyncData('push')} 
+                  style={{ flex: 1, padding: '12px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-white)', border: '1px solid var(--border-light)', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s' }}
+                >
+                  ⬆️ Backup su drive
+                </button>
+                <button 
+                  onClick={() => handleSyncData('pull')} 
+                  style={{ flex: 1, padding: '12px', background: 'rgba(255, 255, 255, 0.05)', color: 'var(--text-white)', border: '1px solid var(--border-light)', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', transition: 'all 0.2s' }}
+                >
+                  ⬇️ Download da Drive
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
 
       {/* Import / Export Backup Panel */}
       <div className="settings-section">
@@ -1050,92 +1023,7 @@ export default function Settings({
         />
       </div>
 
-      {/* Google Link Modal */}
-      {showGoogleLinkModal && (
-        <div className="modal-overlay" onClick={() => setShowGoogleLinkModal(false)}>
-          <div className="modal-content" style={{ maxWidth: '400px', padding: 0 }} onClick={e => e.stopPropagation()}>
-            <div style={{ padding: '30px 24px', textAlign: 'center', position: 'relative' }}>
-              
-              <button className="modal-close-btn" style={{ top: '15px', right: '15px' }} onClick={() => setShowGoogleLinkModal(false)}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                  <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
-                </svg>
-              </button>
 
-              <div style={{ marginBottom: '24px' }}>
-                <svg width="40" height="40" viewBox="0 0 24 24" style={{ marginBottom: '12px' }}>
-                  <path fill="#4285F4" d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v3.92h6.69a5.74 5.74 0 0 1-2.48 3.77v3.13h4.02c2.35-2.16 3.7-5.34 3.7-8.75z"/>
-                  <path fill="#34A853" d="M12 24c3.24 0 5.97-1.08 7.96-2.91l-4.02-3.13c-1.12.75-2.55 1.19-3.94 1.19-3.03 0-5.6-2.05-6.51-4.82H1.36v3.23C3.34 21.6 7.4 24 12 24z"/>
-                  <path fill="#FBBC05" d="M5.49 14.33c-.23-.69-.36-1.42-.36-2.18s.13-1.49.36-2.18v-3.23H1.36C.49 8.5 0 10.19 0 12s.49 3.5 1.36 5.18l4.13-3.23z"/>
-                  <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.43-3.43C17.96 1.19 15.24 0 12 0 7.4 0 3.34 2.4 1.36 6.37l4.13 3.23c.91-2.77 3.48-4.85 6.51-4.85z"/>
-                </svg>
-                <h2 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--text-white)', margin: '0 0 6px 0' }}>Scegli un account</h2>
-                <p style={{ fontSize: '0.85rem', color: 'var(--text-grey)', margin: 0 }}>per collegarlo al tuo profilo</p>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', textAlign: 'left', marginBottom: '20px' }}>
-                {[
-                  { name: 'Mario Rossi', email: 'mario.rossi@gmail.com', avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Fred&backgroundColor=b6e3f4' },
-                  { name: 'Laura Bianchi', email: 'laura.bianchi@gmail.com', avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Luna&backgroundColor=ffdfb4' },
-                  { name: 'Giovanni Verde', email: 'giovanni.verde@gmail.com', avatar: 'https://api.dicebear.com/7.x/adventurer/svg?seed=Milo&backgroundColor=d6ffb7' }
-                ].map(acc => (
-                  <button 
-                    key={acc.email}
-                    type="button"
-                    onClick={() => handleLinkGoogleSelect(acc)}
-                    className="google-account-btn"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '12px',
-                      width: '100%',
-                      background: 'rgba(255,255,255,0.03)',
-                      border: '1px solid var(--border-light)',
-                      borderRadius: '12px',
-                      padding: '12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      color: 'var(--text-white)'
-                    }}
-                  >
-                    <img src={acc.avatar} alt={acc.name} style={{ width: '36px', height: '36px', borderRadius: '50%', background: '#fff' }} />
-                    <div style={{ display: 'flex', flexDirection: 'column' }}>
-                      <span style={{ fontSize: '0.9rem', fontWeight: 600 }}>{acc.name}</span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-grey)' }}>{acc.email}</span>
-                    </div>
-                  </button>
-                ))}
-              </div>
-
-              <div style={{ borderTop: '1px solid var(--border-light)', paddingTop: '16px', textAlign: 'left' }}>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-grey)', display: 'block', marginBottom: '8px' }}>Oppure usa un altro account:</span>
-                <form onSubmit={handleLinkGoogleCustomSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <input 
-                    type="text" 
-                    placeholder="Nome Completo (es. Luca Neri)" 
-                    className="custom-input" 
-                    style={{ padding: '10px 14px', fontSize: '0.85rem' }}
-                    required 
-                    name="googleName"
-                  />
-                  <input 
-                    type="email" 
-                    placeholder="Indirizzo Email" 
-                    className="custom-input" 
-                    style={{ padding: '10px 14px', fontSize: '0.85rem' }}
-                    required 
-                    name="googleEmail"
-                  />
-                  <button type="submit" className="btn-primary" style={{ padding: '10px', fontSize: '0.85rem' }}>
-                    Collega
-                  </button>
-                </form>
-              </div>
-
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* TV Time Import Panel */}
       <div className="settings-section">
