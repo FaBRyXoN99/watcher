@@ -46,6 +46,20 @@ function formatLongDate(dateStr) {
   } catch { return dateStr; }
 }
 
+function daysUntil(dateStr) {
+  if (!dateStr) return null;
+  const target = new Date(dateStr + 'T00:00:00');
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const diff = Math.ceil((target - now) / (1000 * 60 * 60 * 24));
+  return diff;
+}
+
+function isInFuture(dateStr) {
+  if (!dateStr) return false;
+  return daysUntil(dateStr) > 0;
+}
+
 // ── Info row inside the "Informazioni" card ───────────────────────────────────
 function InfoRow({ icon, value, label, noBorder }) {
   if (!value) return null;
@@ -358,7 +372,10 @@ export default function DetailsModal({
           }));
 
           if (item.type === 'tv' && detailsData.seasons && detailsData.seasons.length > 0) {
-            const regularSeasons = detailsData.seasons.filter(s => s.season_number > 0);
+            const regularSeasons = detailsData.seasons.filter(s => s.season_number > 0).map(s => ({
+              ...s,
+              air_date: s.air_date || null
+            }));
             setSeasonsList(regularSeasons);
           }
         }
@@ -426,7 +443,8 @@ export default function DetailsModal({
               episode_number: ep.episode_number,
               still_path: ep.still_path ? `https://image.tmdb.org/t/p/w300${ep.still_path}` : null,
               runtime: ep.runtime || 45,
-              season_number: selectedSeasonNumber
+              season_number: selectedSeasonNumber,
+              air_date: ep.air_date || null
             })));
           }
         } else {
@@ -611,7 +629,14 @@ export default function DetailsModal({
   const isTruncated = desc.length > DESC_LIMIT;
   const displayedDesc = (!isTruncated || descExpanded) ? desc : desc.slice(0, DESC_LIMIT) + '…';
 
+  // Compute movie "coming soon" state
+  const movieIsUpcoming = item.type === 'movie' && movieInfo?.releaseDate && isInFuture(movieInfo.releaseDate);
+  const movieDaysLeft = movieIsUpcoming ? daysUntil(movieInfo.releaseDate) : null;
 
+  // Compute current season air_date info
+  const currentSeason = seasonsList.find(s => s.season_number === selectedSeasonNumber);
+  const seasonAirDate = currentSeason?.air_date || null;
+  const seasonIsUpcoming = seasonAirDate && isInFuture(seasonAirDate);
 
   // Info rows data
   const infoRows = [
@@ -682,6 +707,35 @@ export default function DetailsModal({
                 <EyeIcon size={18} />
               </button>
             </div>
+
+            {/* Coming Soon banner for unreleased movies */}
+            {movieIsUpcoming && (
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(255, 159, 10, 0.15), rgba(255, 44, 156, 0.12))',
+                border: '1px solid rgba(255, 159, 10, 0.3)',
+                borderRadius: '14px',
+                padding: '14px 18px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '14px',
+                marginBottom: '4px'
+              }}>
+                <div style={{
+                  width: '42px', height: '42px', borderRadius: '12px',
+                  background: 'rgba(255, 159, 10, 0.2)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '1.3rem', flexShrink: 0
+                }}>🗓️</div>
+                <div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-white)', marginBottom: '2px' }}>
+                    {movieDaysLeft === 1 ? 'Esce domani!' : `Esce tra ${movieDaysLeft} giorni`}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-grey)' }}>
+                    Data di uscita: {formatLongDate(movieInfo.releaseDate)}
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Watched info bar */}
             {loggedInfo && (
@@ -793,6 +847,26 @@ export default function DetailsModal({
                   </div>
                 </div>
 
+                {/* Season air date info */}
+                {seasonAirDate && (
+                  <div style={{
+                    fontSize: '0.75rem',
+                    color: seasonIsUpcoming ? 'rgba(255, 159, 10, 0.9)' : 'var(--text-grey)',
+                    marginTop: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px'
+                  }}>
+                    <IconCalendar />
+                    <span>
+                      {seasonIsUpcoming
+                        ? `Esce il ${formatLongDate(seasonAirDate)} (tra ${daysUntil(seasonAirDate)} giorni)`
+                        : `Uscita il ${formatLongDate(seasonAirDate)}`
+                      }
+                    </span>
+                  </div>
+                )}
+
                 {loadingEpisodes ? (
                   <div style={{ display: 'flex', justifyContent: 'center', padding: '20px 0', color: 'var(--text-grey)', fontSize: '0.9rem' }}>
                     Caricamento episodi...
@@ -837,6 +911,19 @@ export default function DetailsModal({
                             <span className="tv-episode-meta">
                               Episodio {ep.episode_number} · {ep.runtime}m
                             </span>
+                            {ep.air_date && isInFuture(ep.air_date) && (
+                              <span style={{
+                                fontSize: '0.7rem',
+                                color: 'rgba(255, 159, 10, 0.9)',
+                                fontWeight: 600,
+                                marginTop: '3px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px'
+                              }}>
+                                🗓️ {daysUntil(ep.air_date) === 1 ? 'Esce domani' : `Tra ${daysUntil(ep.air_date)} giorni`}
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
