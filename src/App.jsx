@@ -540,19 +540,38 @@ export default function App() {
   };
 
   // Reset active profile data
-  const handleResetData = () => {
+  const handleResetData = (type = 'all') => {
     if (!activeProfile) return;
-    localStorage.removeItem(`watcher_profile_${activeProfile.id}_tracked_items`);
-    localStorage.removeItem(`watcher_profile_${activeProfile.id}_watchlist`);
-    localStorage.removeItem(`watcher_profile_${activeProfile.id}_tmdb_token`);
-    localStorage.removeItem(`watcher_profile_${activeProfile.id}_collections`);
-    localStorage.removeItem(`watcher_profile_${activeProfile.id}_theme_color`);
-    setTrackedItems([]);
-    setWatchlist([]);
-    setTmdbToken('');
-    setCollections([]);
-    setThemeColor('#3eeefc');
-    showNotification("Profilo ripristinato ai valori di fabbrica.", "success");
+    
+    if (type === 'all' || type === 'tracked') {
+      localStorage.removeItem(`watcher_profile_${activeProfile.id}_tracked_items`);
+      setTrackedItems([]);
+    }
+    
+    if (type === 'all' || type === 'watchlist') {
+      localStorage.removeItem(`watcher_profile_${activeProfile.id}_watchlist`);
+      setWatchlist([]);
+    }
+
+    if (type === 'movies') {
+      const remainingItems = trackedItems.filter(i => i.type !== 'movie');
+      saveTrackedItems(remainingItems);
+    }
+
+    if (type === 'series') {
+      const remainingItems = trackedItems.filter(i => i.type !== 'tv');
+      saveTrackedItems(remainingItems);
+    }
+    
+    if (type === 'all') {
+      localStorage.removeItem(`watcher_profile_${activeProfile.id}_collections`);
+      localStorage.removeItem(`watcher_profile_${activeProfile.id}_theme_color`);
+      setCollections([]);
+      setThemeColor('#3eeefc');
+      showNotification("Profilo ripristinato ai valori di fabbrica.", "success");
+    } else {
+      showNotification("Dati cancellati con successo.", "success");
+    }
   };
 
   // Import Backup Data

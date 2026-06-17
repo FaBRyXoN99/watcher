@@ -1090,21 +1090,126 @@ export default function Settings({
       <div className="settings-section" style={{ borderColor: 'rgba(255, 3, 0, 0.2)' }}>
         <h2 style={{ color: 'var(--accent-red)' }}>Operazioni Pericolose</h2>
         <p className="settings-description">
-          Ripristina completamente l'applicazione. Questa azione eliminerà permanentemente 
-          tutti gli elementi salvati nella tua lista e rimuoverà la chiave API impostata. 
-          Questa operazione non può essere annullata.
+          Gestisci l'eliminazione dei tuoi dati. Attenzione, queste operazioni non possono essere annullate.
         </p>
-        <button 
-          className="btn-primary btn-delete" 
-          style={{ width: 'auto', padding: '10px 24px' }}
-          onClick={() => {
-            if (window.confirm("Sei sicuro di voler eliminare tutti i dati e le chiavi salvate? Questa operazione è permanente.")) {
-              onResetData();
-            }
-          }}
-        >
-          Cancella Tutto
-        </button>
+        
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '16px' }}>
+          <button 
+            style={{ 
+              padding: '8px 16px', 
+              background: 'linear-gradient(90deg, rgba(44, 242, 255, 0.15), rgba(138, 20, 255, 0.15))',
+              border: '1px solid rgba(44, 242, 255, 0.4)',
+              borderRadius: '8px',
+              color: 'var(--text-white)',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.filter = 'brightness(1.2)'}
+            onMouseOut={(e) => e.target.style.filter = 'brightness(1)'}
+            onClick={() => {
+              if (window.confirm("Sei sicuro di voler eliminare tutta la collezione di cose viste?")) {
+                onResetData('tracked');
+              }
+            }}
+          >
+            Cancella intera Collezione
+          </button>
+          
+          <button 
+            style={{ 
+              padding: '8px 16px', 
+              background: 'linear-gradient(90deg, rgba(44, 242, 255, 0.15), rgba(138, 20, 255, 0.15))',
+              border: '1px solid rgba(44, 242, 255, 0.4)',
+              borderRadius: '8px',
+              color: 'var(--text-white)',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.filter = 'brightness(1.2)'}
+            onMouseOut={(e) => e.target.style.filter = 'brightness(1)'}
+            onClick={() => {
+              if (window.confirm("Sei sicuro di voler eliminare tutti i film visti?")) {
+                onResetData('movies');
+              }
+            }}
+          >
+            Cancella film visti
+          </button>
+          
+          <button 
+            style={{ 
+              padding: '8px 16px', 
+              background: 'linear-gradient(90deg, rgba(44, 242, 255, 0.15), rgba(138, 20, 255, 0.15))',
+              border: '1px solid rgba(44, 242, 255, 0.4)',
+              borderRadius: '8px',
+              color: 'var(--text-white)',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.filter = 'brightness(1.2)'}
+            onMouseOut={(e) => e.target.style.filter = 'brightness(1)'}
+            onClick={() => {
+              if (window.confirm("Sei sicuro di voler eliminare tutte le serie viste?")) {
+                onResetData('series');
+              }
+            }}
+          >
+            Cancella serie viste
+          </button>
+
+          <button 
+            style={{ 
+              padding: '8px 16px', 
+              background: 'linear-gradient(90deg, rgba(44, 242, 255, 0.15), rgba(138, 20, 255, 0.15))',
+              border: '1px solid rgba(44, 242, 255, 0.4)',
+              borderRadius: '8px',
+              color: 'var(--text-white)',
+              fontSize: '0.85rem',
+              fontWeight: '600',
+              cursor: 'pointer',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.filter = 'brightness(1.2)'}
+            onMouseOut={(e) => e.target.style.filter = 'brightness(1)'}
+            onClick={() => {
+              if (window.confirm("Sei sicuro di voler eliminare le cose da dover ancora vedere?")) {
+                onResetData('watchlist');
+              }
+            }}
+          >
+            Cancella Watchlist
+          </button>
+
+          <button 
+            style={{ 
+              padding: '10px 20px', 
+              background: 'linear-gradient(90deg, #ff0300, #b30000)',
+              border: 'none',
+              borderRadius: '8px',
+              color: '#ffffff',
+              fontSize: '0.9rem',
+              fontWeight: '700',
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(255, 3, 0, 0.3)',
+              transition: 'all 0.2s'
+            }}
+            onMouseOver={(e) => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 6px 20px rgba(255, 3, 0, 0.5)'; }}
+            onMouseOut={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 15px rgba(255, 3, 0, 0.3)'; }}
+            onClick={() => {
+              if (window.confirm("Sei sicuro di voler ripristinare l'applicazione eliminando tutti i dati salvati? La chiave API non verrà eliminata.")) {
+                onResetData('all');
+              }
+            }}
+          >
+            Cancella tutto
+          </button>
+        </div>
       </div>
     </div>
   );
