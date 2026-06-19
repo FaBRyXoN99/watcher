@@ -234,10 +234,14 @@ export default function Settings({
   const handleTokenSubmit = (e) => {
     e.preventDefault();
     const token = e.target.tokenInput.value.trim();
-    onSaveToken(token);
-    showNotification("Impostazioni salvate con successo!", "success");
+    if (!token) {
+      onSaveToken("eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwZDQ0ZTcyMzdjMTI0OWIwYTJmZDhjN2Y3ZmFmMTNmMiIsIm5iZiI6MTc3NTk1MDYzOS43Nywic3ViIjoiNjlkYWRiMmY3MTRmOWUxNmJkNzBhMzA4Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.c5Rq_7D6KrJ1EgsFwxONoo_6R6TQ-ddf-pRxGiPCZN4");
+      showNotification("Ripristinata chiave di default!", "success");
+    } else {
+      onSaveToken(token);
+      showNotification("Impostazioni salvate con successo!", "success");
+    }
   };
-
   const handleExport = () => {
     try {
       const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(trackedItems, null, 2));
@@ -316,16 +320,28 @@ export default function Settings({
         extracted.forEach(item => {
           const title = item.title;
           const dateVal = item.date || '';
-          
+
           if (!showGroups[title]) {
             showGroups[title] = {
               episodesCount: 0,
-              dates: []
+              dates: [],
+              itemType: item.itemType || 'tv', // movie | tv
+              watchedEpisodes: {},
+              rating: item.rating || 0,
+              platform: item.platform || ''
             };
           }
           showGroups[title].episodesCount++;
           if (dateVal) {
             showGroups[title].dates.push(dateVal);
+          }
+          if (item.season && item.episode) {
+            if (!showGroups[title].watchedEpisodes[item.season]) {
+              showGroups[title].watchedEpisodes[item.season] = [];
+            }
+            if (!showGroups[title].watchedEpisodes[item.season].includes(item.episode)) {
+              showGroups[title].watchedEpisodes[item.season].push(item.episode);
+            }
           }
         });
 
@@ -346,13 +362,16 @@ export default function Settings({
             id: safeId,
             tmdbId: null,
             title: title,
-            type: "tv",
+            type: info.itemType, // "movie" or "tv", decided per-item, not hardcoded
             poster: "",
             backdrop: "",
-            rating: 5.0,
-            platform: "TV Time",
+            rating: info.rating,
+            platform: info.platform,
             watchDate: latestDate,
-            notes: `Importato da TV Time (${info.episodesCount} episodi visti)`
+            watchedEpisodes: info.watchedEpisodes,
+            notes: info.itemType === 'movie'
+              ? `Importato da file esterno (film)`
+              : `Importato da file esterno (${info.episodesCount} episodi visti)`
           };
         });
       } else {
@@ -364,7 +383,7 @@ export default function Settings({
             id: safeId,
             tmdbId: null,
             title: title,
-            type: "tv",
+            type: item.itemType || 'tv', // "movie" or "tv", decided per-item, not hardcoded
             poster: "",
             backdrop: "",
             year: "",
@@ -402,13 +421,13 @@ export default function Settings({
           try {
             const jsonObj = JSON.parse(trimmedText);
             isJson = true;
-            
+
             const extracted = extractShowsFromJSON(jsonObj);
             if (extracted.length === 0) {
               showNotification("Nessun elemento valido trovato nel file JSON.", "error");
               return;
             }
-            
+
             importedItems = processExtractedItems(extracted, target);
           } catch (jsonErr) {
             console.error("Failed to parse as JSON, falling back to CSV:", jsonErr);
@@ -423,34 +442,81 @@ export default function Settings({
             return;
           }
 
-          const headers = rows[0].map(h => h.toLowerCase().trim().replace(/['"_\s-]/g, ''));
-          
-          // Find indices of relevant headers
-          const titleIndex = rows[0].findIndex(h => {
-            const clean = h.toLowerCase().trim().replace(/['"_\s-]/g, '');
+          const cleanHeader = h => h.toLowerCase().trim().replace(/['"_\s-]/g, '');
+          const headerRow = rows[0];
+
+          // Columns specific to exports that distinguish movie vs series explicitly
+          const entityTypeIndex = headerRow.findIndex(h => cleanHeader(h) === 'entitytype');
+          const movieNameIndex = headerRow.findIndex(h => ['movietitle', 'moviename'].includes(cleanHeader(h)));
+          const seriesNameIndex = headerRow.findIndex(h => ['showname', 'showtitle', 'tvshowname', 'seriesname'].includes(cleanHeader(h)));
+
+          // Generic single-title-column detection, kept for simple/legacy CSV formats
+          // (e.g. real TV Time exports that only ever contain one kind of item)
+          const titleIndex = headerRow.findIndex(h => {
+            const clean = cleanHeader(h);
             return [
-              'showname', 'showtitle', 'title', 'tvshowname', 'movietitle', 'moviename', 
+              'showname', 'showtitle', 'title', 'tvshowname', 'movietitle', 'moviename',
               'name', 'show', 'serie', 'titolo', 'originaltitle', 'originalname'
             ].includes(clean);
           });
-          const dateIndex = rows[0].findIndex(h => {
-            const clean = h.toLowerCase().trim().replace(/['"_\s-]/g, '');
+
+          const dateIndex = headerRow.findIndex(h => {
+            const clean = cleanHeader(h);
             return [
-              'updatedat', 'date', 'datewatched', 'watchedat', 'createdat', 'timestamp', 
+              'updatedat', 'date', 'datewatched', 'watchedat', 'createdat', 'timestamp',
               'data', 'vistoil', 'creatoil', 'followedat', 'addedat', 'lastwatched', 'watchdate'
             ].includes(clean);
           });
 
-          if (titleIndex === -1) {
+          const seasonIndex = headerRow.findIndex(h => ['season', 'seasonnumber', 'episodeseasonnumber'].includes(cleanHeader(h)));
+          const episodeIndex = headerRow.findIndex(h => ['episode', 'episodenumber'].includes(cleanHeader(h)));
+          const ratingIndex = headerRow.findIndex(h => ['rating', 'score', 'voto', 'evaluation'].includes(cleanHeader(h)));
+          const platformIndex = headerRow.findIndex(h => ['platform', 'network', 'channel'].includes(cleanHeader(h)));
+
+          const hasDualColumns = movieNameIndex !== -1 || seriesNameIndex !== -1;
+
+          if (!hasDualColumns && titleIndex === -1) {
             showNotification("Impossibile trovare la colonna del titolo (es. 'show_name', 'title') nel CSV.", "error");
             return;
           }
 
-          const dataRows = rows.slice(1).filter(r => r.length > titleIndex && r[titleIndex].trim() !== "");
-          const extracted = dataRows.map(row => {
-            const title = row[titleIndex].trim();
+          const dataRows = rows.slice(1);
+          const extracted = [];
+
+          dataRows.forEach(row => {
             const dateVal = dateIndex !== -1 && row[dateIndex] ? row[dateIndex].trim() : '';
-            return { title, date: dateVal };
+            let title = '';
+            let itemType = 'tv';
+            
+            const seasonVal = seasonIndex !== -1 && row[seasonIndex] ? parseInt(row[seasonIndex], 10) : null;
+            const episodeVal = episodeIndex !== -1 && row[episodeIndex] ? parseInt(row[episodeIndex], 10) : null;
+            const ratingVal = ratingIndex !== -1 && row[ratingIndex] ? parseFloat(row[ratingIndex]) : 0;
+            const platformVal = platformIndex !== -1 && row[platformIndex] ? row[platformIndex].trim() : '';
+
+            if (hasDualColumns) {
+              // Decide per-row whether this is a movie or a series item,
+              // using entity_type when present, otherwise whichever
+              // name column is actually populated for this row.
+              const movieVal = movieNameIndex !== -1 && row[movieNameIndex] ? row[movieNameIndex].trim() : '';
+              const seriesVal = seriesNameIndex !== -1 && row[seriesNameIndex] ? row[seriesNameIndex].trim() : '';
+              const et = entityTypeIndex !== -1 && row[entityTypeIndex] ? row[entityTypeIndex].trim().toLowerCase() : '';
+
+              if (et === 'movie' || (!et && movieVal)) {
+                title = movieVal;
+                itemType = 'movie';
+              } else if (et === 'episode' || et === 'series' || (!et && seriesVal)) {
+                title = seriesVal;
+                itemType = 'tv';
+              }
+
+              if (!title) return; // skip aggregate/counter rows with no actual title
+            } else {
+              if (row.length <= titleIndex || !row[titleIndex] || !row[titleIndex].trim()) return;
+              title = row[titleIndex].trim();
+              itemType = 'tv';
+            }
+
+            extracted.push({ title, date: dateVal, itemType, season: seasonVal, episode: episodeVal, rating: ratingVal, platform: platformVal });
           });
 
           importedItems = processExtractedItems(extracted, target);
@@ -462,11 +528,11 @@ export default function Settings({
         }
 
         onImportData(importedItems, target === 'tracked' ? 'tracked' : 'watchlist');
-        
+
         if (target === 'tracked') {
-          showNotification(`Importati con successo ${importedItems.length} show da TV Time!`, "success");
+          showNotification(`Importati con successo ${importedItems.length} elementi da TV Time!`, "success");
         } else {
-          showNotification(`Importati con successo ${importedItems.length} show nella watchlist!`, "success");
+          showNotification(`Importati con successo ${importedItems.length} elementi nella watchlist!`, "success");
         }
       } catch (err) {
         console.error("Error importing file:", err);
@@ -508,22 +574,21 @@ export default function Settings({
 
       {/* API Key Panel */}
       <div className="settings-section">
-        <h2>Chiave API The Movie Database (TMDB)</h2>
+        <h2>Configurazione API TMDB</h2>
         <p className="settings-description">
-          L'inserimento di un <strong>Token di Accesso in Lettura di TMDB</strong> sblocca la ricerca live 
-          e i fornitori di streaming JustWatch in tempo reale. Senza token, l'app funzionerà offline 
-          utilizzando il catalogo di esempio.
+          L'app è già <strong>preconfigurata di default</strong> per funzionare con la ricerca live e i fornitori di streaming in tempo reale di JustWatch.
+          Sostituisci questo token solo se desideri utilizzare la tua chiave API personale.
         </p>
         <form onSubmit={handleTokenSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <div className="form-group">
-            <label className="form-label" htmlFor="tokenInput">TMDB Read Access Token (Bearer):</label>
+            <label className="form-label" htmlFor="tokenInput">TMDB Read Access Token (Personalizzato):</label>
             <textarea 
               id="tokenInput"
               name="tokenInput"
               className="custom-input"
               rows="3"
-              placeholder="Inserisci il token di lettura bearer (inizia tipicamente con eyJ...)"
-              defaultValue={tmdbToken}
+              placeholder="Lascia vuoto per usare il token di default o inserisci il tuo (inizia con eyJ...)"
+              defaultValue={tmdbToken === "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwZDQ0ZTcyMzdjMTI0OWIwYTJmZDhjN2Y3ZmFmMTNmMiIsIm5iZiI6MTc3NTk1MDYzOS43Nywic3ViIjoiNjlkYWRiMmY3MTRmOWUxNmJkNzBhMzA4Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.c5Rq_7D6KrJ1EgsFwxONoo_6R6TQ-ddf-pRxGiPCZN4" ? "" : tmdbToken}
               style={{ fontFamily: 'monospace', fontSize: '0.8rem', resize: 'vertical' }}
             />
           </div>
@@ -536,18 +601,17 @@ export default function Settings({
               className="btn-outline" 
               style={{ width: 'auto', padding: '10px 24px' }}
               onClick={() => {
-                const defaultKey = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwZDQ0ZTcyMzdjMTI0OWIwYTJmZDhjN2Y3ZmFmMTNmMiIsIm5iZiI6MTc3NTk1MDYzOS43Nywic3ViIjoiNjlkYWRiMmY3MTRmOWUxNmJkNzBhMzA4Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.c5Rq_7D6KrJ1EgsFwxONoo_6R6TQ-ddf-pRxGiPCZN4";
-                document.getElementById('tokenInput').value = defaultKey;
-                onSaveToken(defaultKey);
-                showNotification("Chiave di default caricata e salvata!", "success");
+                document.getElementById('tokenInput').value = "";
+                onSaveToken("eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwZDQ0ZTcyMzdjMTI0OWIwYTJmZDhjN2Y3ZmFmMTNmMiIsIm5iZiI6MTc3NTk1MDYzOS43Nywic3ViIjoiNjlkYWRiMmY3MTRmOWUxNmJkNzBhMzA4Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.c5Rq_7D6KrJ1EgsFwxONoo_6R6TQ-ddf-pRxGiPCZN4");
+                showNotification("Chiave di default ripristinata!", "success");
               }}
             >
-              Chiave di default
+              Ripristina Default
             </button>
           </div>
         </form>
         <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '12px' }}>
-          * Puoi ottenere un token di accesso gratuito registrando un account su <a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>themoviedb.org</a>, andando in Impostazioni &gt; API e generando una chiave API per sviluppatori.
+          * Puoi ottenere un token di accesso gratuito registrando un account su <a href="https://www.themoviedb.org/" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-cyan)' }}>themoviedb.org</a>.
         </p>
 
         <div style={{

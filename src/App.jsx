@@ -24,6 +24,8 @@ async function tmdbFetch(endpoint, token) {
   return res.json();
 }
 
+const DEFAULT_TMDB_TOKEN = "eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiIwZDQ0ZTcyMzdjMTI0OWIwYTJmZDhjN2Y3ZmFmMTNmMiIsIm5iZiI6MTc3NTk1MDYzOS43Nywic3ViIjoiNjlkYWRiMmY3MTRmOWUxNmJkNzBhMzA4Iiwic2NvcGVzIjpbImFwaV9yZWFkIl0sInZlcnNpb24iOjF9.c5Rq_7D6KrJ1EgsFwxONoo_6R6TQ-ddf-pRxGiPCZN4";
+
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
   const [profiles, setProfiles] = useState([]);
@@ -32,7 +34,7 @@ export default function App() {
   const [watchlist, setWatchlist] = useState([]);
   const [collections, setCollections] = useState([]);
   const [collectionModalMedia, setCollectionModalMedia] = useState(null);
-  const [tmdbToken, setTmdbToken] = useState('');
+  const [tmdbToken, setTmdbToken] = useState(DEFAULT_TMDB_TOKEN);
   const [selectedMedia, setSelectedMedia] = useState(null);
   const [notification, setNotification] = useState(null);
   const [profileSubPage, setProfileSubPage] = useState(null);
@@ -264,7 +266,7 @@ export default function App() {
         localStorage.setItem(`watcher_profile_${profileId}_tmdb_token`, oldGlobalToken);
         localStorage.removeItem('watcher_tmdb_token'); // cleanup
       } else {
-        setTmdbToken('');
+        setTmdbToken(DEFAULT_TMDB_TOKEN);
       }
     }
 
@@ -376,71 +378,82 @@ export default function App() {
       const enriched = [...items];
       let changed = false;
 
-      await Promise.allSettled(
-        itemsNeedingEnrichment.map(async (item) => {
-          try {
-            const typePath = item.type === 'movie' ? 'movie' : 'tv';
-            let data = null;
-            let tmdbId = item.tmdbId;
+      // Process in chunks to avoid TMDB API rate limiting
+      const chunkSize = 5;
+      for (let i = 0; i < itemsNeedingEnrichment.length; i += chunkSize) {
+        const chunk = itemsNeedingEnrichment.slice(i, i + chunkSize);
+        
+        await Promise.allSettled(
+          chunk.map(async (item) => {
+            try {
+              const typePath = item.type === 'movie' ? 'movie' : 'tv';
+              let data = null;
+              let tmdbId = item.tmdbId;
 
-            if (!tmdbId && item.title) {
-              const query = encodeURIComponent(item.title);
-              const searchRes = await fetch(
-                `https://api.themoviedb.org/3/search/${typePath}?query=${query}&language=it-IT`,
-                { headers: { Authorization: `Bearer ${tmdbToken}`, accept: 'application/json' } }
-              );
-              if (searchRes.ok) {
-                const searchData = await searchRes.json();
-                if (searchData.results && searchData.results.length > 0) {
-                  const firstResult = searchData.results[0];
-                  tmdbId = firstResult.id;
-                  data = firstResult;
+              if (!tmdbId && item.title) {
+                const query = encodeURIComponent(item.title);
+                const searchRes = await fetch(
+                  `https://api.themoviedb.org/3/search/${typePath}?query=${query}&language=it-IT`,
+                  { headers: { Authorization: `Bearer ${tmdbToken}`, accept: 'application/json' } }
+                );
+                if (searchRes.ok) {
+                  const searchData = await searchRes.json();
+                  if (searchData.results && searchData.results.length > 0) {
+                    const firstResult = searchData.results[0];
+                    tmdbId = firstResult.id;
+                    data = firstResult;
+                  }
+                }
+              } else if (tmdbId) {
+                const res = await fetch(
+                  `https://api.themoviedb.org/3/${typePath}/${tmdbId}?language=it-IT`,
+                  { headers: { Authorization: `Bearer ${tmdbToken}`, accept: 'application/json' } }
+                );
+                if (res.ok) {
+                  data = await res.json();
                 }
               }
-            } else if (tmdbId) {
-              const res = await fetch(
-                `https://api.themoviedb.org/3/${typePath}/${tmdbId}?language=it-IT`,
-                { headers: { Authorization: `Bearer ${tmdbToken}`, accept: 'application/json' } }
-              );
-              if (res.ok) {
-                data = await res.json();
+
+              if (data && tmdbId) {
+                const idx = enriched.findIndex(idxItem => idxItem.id === item.id);
+                if (idx !== -1) {
+                  const updatedItem = { ...enriched[idx] };
+                  if (!updatedItem.tmdbId) {
+                    updatedItem.tmdbId = tmdbId;
+                    changed = true;
+                  }
+                  if (data.poster_path && !updatedItem.poster) {
+                    updatedItem.poster = `https://image.tmdb.org/t/p/w342${data.poster_path}`;
+                    changed = true;
+                  }
+                  if (data.backdrop_path && !updatedItem.backdrop) {
+                    updatedItem.backdrop = `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
+                    changed = true;
+                  }
+                  
+                  const dateStr = data.release_date || data.first_air_date || '';
+                  if (dateStr && !updatedItem.year) {
+                    updatedItem.year = dateStr.split('-')[0];
+                    changed = true;
+                  }
+
+                  if (data.genres && Array.isArray(data.genres) && (!updatedItem.genres || updatedItem.genres.length === 0)) {
+                    updatedItem.genres = data.genres.map(g => g.name);
+                    changed = true;
+                  }
+
+                  enriched[idx] = updatedItem;
+                }
               }
-            }
-
-            if (data && tmdbId) {
-              const idx = enriched.findIndex(i => i.id === item.id);
-              if (idx !== -1) {
-                const updatedItem = { ...enriched[idx] };
-                if (!updatedItem.tmdbId) {
-                  updatedItem.tmdbId = tmdbId;
-                  changed = true;
-                }
-                if (data.poster_path && !updatedItem.poster) {
-                  updatedItem.poster = `https://image.tmdb.org/t/p/w342${data.poster_path}`;
-                  changed = true;
-                }
-                if (data.backdrop_path && !updatedItem.backdrop) {
-                  updatedItem.backdrop = `https://image.tmdb.org/t/p/original${data.backdrop_path}`;
-                  changed = true;
-                }
-                
-                const dateStr = data.release_date || data.first_air_date || '';
-                if (dateStr && !updatedItem.year) {
-                  updatedItem.year = dateStr.split('-')[0];
-                  changed = true;
-                }
-
-                if (data.genres && Array.isArray(data.genres) && (!updatedItem.genres || updatedItem.genres.length === 0)) {
-                  updatedItem.genres = data.genres.map(g => g.name);
-                  changed = true;
-                }
-
-                enriched[idx] = updatedItem;
-              }
-            }
-          } catch (_) {}
-        })
-      );
+            } catch (_) {}
+          })
+        );
+        
+        // Wait a tiny bit before the next chunk
+        if (i + chunkSize < itemsNeedingEnrichment.length) {
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
+      }
 
       if (changed) {
         setter(enriched);
