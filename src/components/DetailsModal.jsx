@@ -287,6 +287,60 @@ export default function DetailsModal({
   const [pendingEpisodeAction, setPendingEpisodeAction] = useState(null); // { seasonNum, epNum }
   const [pendingSeasonAction, setPendingSeasonAction] = useState(null); // { targetSeasonNum, onlySwitch }
 
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const wheelAccumulatorX = useRef(0);
+  const wheelTimeout = useRef(null);
+
+  const handleTouchStart = (e) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchEnd = (e) => {
+    if (e.target.closest('.dm-cast-row') || 
+        e.target.closest('.dm-providers-row') || 
+        e.target.closest('.similar-row') ||
+        e.target.closest('.tv-episodes-grid') ||
+        e.target.closest('.lp-platforms')) {
+      return;
+    }
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    
+    const diffX = touchEndX - touchStartX.current; // Positive if left-to-right
+    const diffY = Math.abs(touchStartY.current - touchEndY);
+    
+    if (diffX > 70 && diffY < 50) {
+      onClose();
+    }
+  };
+
+  const handleWheel = (e) => {
+    if (e.target.closest('.dm-cast-row') || 
+        e.target.closest('.dm-providers-row') || 
+        e.target.closest('.similar-row') ||
+        e.target.closest('.tv-episodes-grid') ||
+        e.target.closest('.lp-platforms')) {
+      return;
+    }
+
+    if (Math.abs(e.deltaX) > Math.abs(e.deltaY)) {
+      wheelAccumulatorX.current += e.deltaX;
+      
+      clearTimeout(wheelTimeout.current);
+      wheelTimeout.current = setTimeout(() => {
+        wheelAccumulatorX.current = 0;
+      }, 200);
+
+      // Negative deltaX means a left-to-right swipe on trackpads
+      if (wheelAccumulatorX.current < -100) {
+        onClose();
+        wheelAccumulatorX.current = 0;
+      }
+    }
+  };
+
   // Dynamic data
   const [dynamicProviders, setDynamicProviders] = useState(item?.providers ?? null);
   const [dynamicCast, setDynamicCast] = useState(item?.cast ?? null);
@@ -651,7 +705,13 @@ export default function DetailsModal({
   return (
     <>
       <div className="dm-overlay" onClick={onClose}>
-        <div className="dm-sheet" onClick={e => e.stopPropagation()}>
+        <div 
+          className="dm-sheet" 
+          onClick={e => e.stopPropagation()}
+          onTouchStart={handleTouchStart}
+          onTouchEnd={handleTouchEnd}
+          onWheel={handleWheel}
+        >
 
           {/* ── HERO ── */}
           <div className="dm-hero">

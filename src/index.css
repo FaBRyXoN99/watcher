@@ -165,18 +165,47 @@ body {
   filter: drop-shadow(0 0 5px rgba(62, 238, 252, 0.4));
 }
 
+@media (min-width: 769px) {
+  .navigation-bar {
+    max-width: 600px;
+    height: 76px;
+    bottom: 32px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .navigation-bar {
+    max-width: 800px;
+    height: 80px;
+  }
+  .nav-item {
+    font-size: 0.85rem;
+  }
+  .nav-item svg {
+    width: 26px;
+    height: 26px;
+  }
+}
+
 /* MAIN VIEWPORT */
 .main-content {
   flex: 1;
   padding: 20px;
   width: 100%;
-  max-width: 1400px;
+  max-width: 1600px;
   margin: 0 auto;
 }
 
 @media (min-width: 769px) {
   .main-content {
     padding: 40px 40px 120px 40px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .main-content {
+    max-width: 1800px;
+    padding: 40px 60px 120px 60px;
   }
 }
 
@@ -650,6 +679,13 @@ body {
   .media-grid {
     grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
     gap: 24px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .media-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 28px;
   }
 }
 
@@ -1302,6 +1338,12 @@ body {
     animation: lp-zoom 0.26s cubic-bezier(0.16, 1, 0.3, 1);
   }
 }
+@media (min-width: 1024px) {
+  .lp-card {
+    max-width: 580px;
+    padding: 32px 30px 40px;
+  }
+}
 @keyframes lp-slide-up {
   from { transform: translateY(100%); opacity: 0; }
   to   { transform: translateY(0);   opacity: 1; }
@@ -1590,6 +1632,19 @@ body {
     border-radius: var(--border-radius-lg);
     max-height: 90vh;
     animation: dmZoomIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
+@media (min-width: 1024px) {
+  .dm-sheet {
+    max-width: 800px;
+    max-height: 85vh;
+  }
+}
+
+@media (min-width: 1440px) {
+  .dm-sheet {
+    max-width: 900px;
   }
 }
 
@@ -2131,6 +2186,16 @@ body {
   @keyframes zoomIn {
     from { transform: scale(0.95); opacity: 0; }
     to   { transform: scale(1);    opacity: 1; }
+  }
+}
+@media (min-width: 1024px) {
+  .modal-content {
+    max-width: 800px;
+  }
+}
+@media (min-width: 1440px) {
+  .modal-content {
+    max-width: 950px;
   }
 }
 
@@ -3108,10 +3173,23 @@ body {
   border: 1px solid var(--border-light);
   border-radius: var(--border-radius-lg);
   width: 100%;
+  max-width: 650px;
   max-height: 90vh;
   overflow-y: auto;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.7);
   animation: slideUp 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@media (min-width: 1024px) {
+  .modal-content {
+    max-width: 800px;
+  }
+}
+
+@media (min-width: 1440px) {
+  .modal-content {
+    max-width: 950px;
+  }
 }
 
 .modal-body {
