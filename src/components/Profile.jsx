@@ -847,6 +847,10 @@ export default function Profile({
               <span style={{ fontWeight: 700, fontSize: '1.1rem' }}>{movies.length}F / {series.length}S</span>
               <span style={{ fontSize: '0.68rem', color: 'var(--text-grey)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tipologia</span>
             </div>
+            <div style={{ display: 'flex', flexDirection: 'column', borderLeft: '1px solid var(--border-light)', paddingLeft: '18px' }}>
+              <span style={{ fontWeight: 700, fontSize: '1.1rem', color: 'var(--accent-cyan)' }}>{fmtTime(totalMovieMin + totalSeriesMin)}</span>
+              <span style={{ fontSize: '0.68rem', color: 'var(--text-grey)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tempo</span>
+            </div>
           </div>
         </div>
       </div>

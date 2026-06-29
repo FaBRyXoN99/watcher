@@ -326,22 +326,27 @@ export default function Settings({
               episodesCount: 0,
               dates: [],
               itemType: item.itemType || 'tv', // movie | tv
-              watchedEpisodes: {},
-              rating: item.rating || 0,
-              platform: item.platform || ''
+              rating: null,
+              platform: '',
+              watchedEpisodes: null
             };
           }
           showGroups[title].episodesCount++;
           if (dateVal) {
             showGroups[title].dates.push(dateVal);
           }
-          if (item.season && item.episode) {
-            if (!showGroups[title].watchedEpisodes[item.season]) {
-              showGroups[title].watchedEpisodes[item.season] = [];
-            }
-            if (!showGroups[title].watchedEpisodes[item.season].includes(item.episode)) {
-              showGroups[title].watchedEpisodes[item.season].push(item.episode);
-            }
+          // Keep the most recently-seen non-empty rating/platform for this title,
+          // in case multiple rows disagree (e.g. re-watch rows without a rating
+          // followed by one that does have it).
+          if (item.rating !== null && item.rating !== undefined && !isNaN(item.rating)) {
+            showGroups[title].rating = item.rating;
+          }
+          if (item.platform) {
+            showGroups[title].platform = item.platform;
+          }
+          // watchedEpisodes comes pre-built from serie_tv.csv; take first non-null value found.
+          if (item.watchedEpisodes && !showGroups[title].watchedEpisodes) {
+            showGroups[title].watchedEpisodes = item.watchedEpisodes;
           }
         });
 
@@ -358,6 +363,9 @@ export default function Settings({
           }
 
           const safeId = `tvtime-tr-${encodeURIComponent(title.toLowerCase()).replace(/%/g, '')}-${Math.random().toString(36).substr(2, 9)}`;
+          const epCount = info.watchedEpisodes
+            ? Object.values(info.watchedEpisodes).reduce((sum, eps) => sum + eps.length, 0)
+            : info.episodesCount;
           return {
             id: safeId,
             tmdbId: null,
@@ -365,13 +373,13 @@ export default function Settings({
             type: info.itemType, // "movie" or "tv", decided per-item, not hardcoded
             poster: "",
             backdrop: "",
-            rating: info.rating,
-            platform: info.platform,
+            rating: info.rating, // real rating if we have one, otherwise null (not a fake 5.0)
+            platform: info.platform || '', // real platform if known, otherwise left blank (not fake "TV Time")
             watchDate: latestDate,
-            watchedEpisodes: info.watchedEpisodes,
+            watchedEpisodes: info.watchedEpisodes || {}, // full episode map, or empty object for movies
             notes: info.itemType === 'movie'
-              ? `Importato da file esterno (film)`
-              : `Importato da file esterno (${info.episodesCount} episodi visti)`
+              ? `Importato da TV Time (film)`
+              : `Importato da TV Time (${epCount} episodi visti)`
           };
         });
       } else {
@@ -468,10 +476,14 @@ export default function Settings({
             ].includes(clean);
           });
 
-          const seasonIndex = headerRow.findIndex(h => ['season', 'seasonnumber', 'episodeseasonnumber'].includes(cleanHeader(h)));
-          const episodeIndex = headerRow.findIndex(h => ['episode', 'episodenumber'].includes(cleanHeader(h)));
-          const ratingIndex = headerRow.findIndex(h => ['rating', 'score', 'voto', 'evaluation'].includes(cleanHeader(h)));
-          const platformIndex = headerRow.findIndex(h => ['platform', 'network', 'channel'].includes(cleanHeader(h)));
+          // Optional columns: only some export formats actually carry these
+          // (e.g. tv_show_rate.csv has 'rating'; most TV Time exports don't
+          // have a platform/source column at all). When absent, we leave
+          // rating/platform unset rather than inventing a default value.
+          const ratingIndex = headerRow.findIndex(h => ['rating', 'voto', 'imdbrating'].includes(cleanHeader(h)));
+          const platformIndex = headerRow.findIndex(h => ['platform', 'piattaforma', 'source', 'watchedonsource'].includes(cleanHeader(h)));
+          // episodi_visti: JSON string like {"1":[1,2,3],"2":[1,2]} — only present in serie_tv.csv
+          const watchedEpisodesIndex = headerRow.findIndex(h => ['episodivisti', 'watchedepisodes', 'episodi'].includes(cleanHeader(h)));
 
           const hasDualColumns = movieNameIndex !== -1 || seriesNameIndex !== -1;
 
@@ -485,13 +497,12 @@ export default function Settings({
 
           dataRows.forEach(row => {
             const dateVal = dateIndex !== -1 && row[dateIndex] ? row[dateIndex].trim() : '';
+            const ratingVal = ratingIndex !== -1 && row[ratingIndex] && row[ratingIndex].trim() !== ''
+              ? parseFloat(row[ratingIndex].replace(',', '.'))
+              : null;
+            const platformVal = platformIndex !== -1 && row[platformIndex] ? row[platformIndex].trim() : '';
             let title = '';
             let itemType = 'tv';
-            
-            const seasonVal = seasonIndex !== -1 && row[seasonIndex] ? parseInt(row[seasonIndex], 10) : null;
-            const episodeVal = episodeIndex !== -1 && row[episodeIndex] ? parseInt(row[episodeIndex], 10) : null;
-            const ratingVal = ratingIndex !== -1 && row[ratingIndex] ? parseFloat(row[ratingIndex]) : 0;
-            const platformVal = platformIndex !== -1 && row[platformIndex] ? row[platformIndex].trim() : '';
 
             if (hasDualColumns) {
               // Decide per-row whether this is a movie or a series item,
@@ -516,7 +527,15 @@ export default function Settings({
               itemType = 'tv';
             }
 
-            extracted.push({ title, date: dateVal, itemType, season: seasonVal, episode: episodeVal, rating: ratingVal, platform: platformVal });
+            // Parse watchedEpisodes JSON if the column is present (serie_tv.csv)
+            let watchedEpisodes = null;
+            if (watchedEpisodesIndex !== -1 && row[watchedEpisodesIndex] && row[watchedEpisodesIndex].trim()) {
+              try {
+                watchedEpisodes = JSON.parse(row[watchedEpisodesIndex].trim());
+              } catch (_) {}
+            }
+
+            extracted.push({ title, date: dateVal, itemType, rating: ratingVal, platform: platformVal, watchedEpisodes });
           });
 
           importedItems = processExtractedItems(extracted, target);
