@@ -52,8 +52,9 @@ export function StatsScrollCards({ trackedItems, statsConfig }) {
   const movies = trackedItems.filter(i => i.type === 'movie');
   const series = trackedItems.filter(i => i.type === 'tv');
   const totalItems = trackedItems.length;
-  const avgRating = totalItems > 0
-    ? (trackedItems.reduce((a, i) => a + i.rating, 0) / totalItems).toFixed(1)
+  const ratedItems = trackedItems.filter(i => i.rating !== null && i.rating !== undefined);
+  const avgRating = ratedItems.length > 0
+    ? (ratedItems.reduce((a, i) => a + i.rating, 0) / ratedItems.length).toFixed(1)
     : '0.0';
 
   // Favorite platform
@@ -66,7 +67,13 @@ export function StatsScrollCards({ trackedItems, statsConfig }) {
   const movieHours = Math.floor((movies.length * 105) / 60);
   const movieMins  = (movies.length * 105) % 60;
   // Series time (avg 12 ep × 45 min)
-  const seriesEp   = series.length * 12;
+  const seriesEp   = series.reduce((sum, item) => {
+    if (item.watchedEpisodes && typeof item.watchedEpisodes === 'object') {
+      const count = Object.values(item.watchedEpisodes).reduce((s, eps) => s + (Array.isArray(eps) ? eps.length : 0), 0);
+      if (count > 0) return sum + count;
+    }
+    return sum + 12;
+  }, 0);
   const seriesHours = Math.floor((seriesEp * 45) / 60);
 
   const allCards = {
@@ -76,7 +83,7 @@ export function StatsScrollCards({ trackedItems, statsConfig }) {
     moviesCount:       { id: 'moviesCount',       value: `🎬 ${movies.length}`,           label: 'Film Visti',        accent: 'var(--text-white)',     icon: null },
     tvCount:           { id: 'tvCount',           value: `📺 ${series.length}`,           label: 'Serie Viste',       accent: 'var(--text-white)',     icon: null },
     movieTime:         { id: 'movieTime',         value: `${movieHours}h ${movieMins}m`,  label: 'Tempo Film',        accent: 'var(--accent-cyan)',    icon: '⏱️' },
-    estimatedEpisodes: { id: 'estimatedEpisodes', value: seriesEp,                         label: 'Episodi Stimati',   accent: 'var(--accent-green)',   icon: '🎞️' },
+    estimatedEpisodes: { id: 'estimatedEpisodes', value: seriesEp,                         label: 'Episodi Visti',     accent: 'var(--accent-green)',   icon: '🎞️' },
     tvTime:            { id: 'tvTime',            value: `${seriesHours}h`,               label: 'Tempo Serie',       accent: 'var(--accent-cyan)',    icon: '⌛' }
   };
 

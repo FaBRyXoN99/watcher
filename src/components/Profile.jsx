@@ -42,7 +42,13 @@ function StatsPage({ trackedItems, onBack }) {
 
   const avgEpisodesPerSeries = 12;
   const avgEpisodeMin = 45;
-  const totalEpisodes = series.length * avgEpisodesPerSeries;
+  const totalEpisodes = series.reduce((sum, item) => {
+    if (item.watchedEpisodes && typeof item.watchedEpisodes === 'object') {
+      const count = Object.values(item.watchedEpisodes).reduce((s, eps) => s + (Array.isArray(eps) ? eps.length : 0), 0);
+      if (count > 0) return sum + count;
+    }
+    return sum + avgEpisodesPerSeries;
+  }, 0);
   const totalSeriesMin = totalEpisodes * avgEpisodeMin;
   const seriesHours = Math.floor(totalSeriesMin / 60);
   const seriesMins = totalSeriesMin % 60;
@@ -50,8 +56,9 @@ function StatsPage({ trackedItems, onBack }) {
   const totalMin = totalMovieMin + totalSeriesMin;
   const totalHours = Math.floor(totalMin / 60);
 
-  const avgRating = trackedItems.length > 0
-    ? (trackedItems.reduce((a, i) => a + i.rating, 0) / trackedItems.length).toFixed(1)
+  const ratedItems = trackedItems.filter(i => i.rating !== null && i.rating !== undefined);
+  const avgRating = ratedItems.length > 0
+    ? (ratedItems.reduce((a, i) => a + i.rating, 0) / ratedItems.length).toFixed(1)
     : '0.0';
 
   const topPlatform = (() => {
@@ -64,7 +71,7 @@ function StatsPage({ trackedItems, onBack }) {
     { icon: '🎬', label: 'Film visti', value: movies.length },
     { icon: '⏱️', label: 'Tempo film', value: `${movieHours}h ${movieMins}m` },
     { icon: '📺', label: 'Serie viste', value: series.length },
-    { icon: '🎞️', label: 'Episodi stimati', value: totalEpisodes },
+    { icon: '🎞️', label: 'Episodi visti', value: totalEpisodes },
     { icon: '⌛', label: 'Tempo serie', value: `${seriesHours}h ${seriesMins}m` },
     { icon: '🕰️', label: 'Totale tempo visione', value: `${totalHours}h` },
     { icon: '⭐', label: 'Voto medio', value: `${avgRating} / 5.0` },
@@ -641,11 +648,18 @@ export default function Profile({
   // Quick stats
   const movies = trackedItems.filter(i => i.type === 'movie');
   const series = trackedItems.filter(i => i.type === 'tv');
-  const avgRating = trackedItems.length > 0
-    ? (trackedItems.reduce((a, i) => a + i.rating, 0) / trackedItems.length).toFixed(1)
+  const ratedItems = trackedItems.filter(i => i.rating !== null && i.rating !== undefined);
+  const avgRating = ratedItems.length > 0
+    ? (ratedItems.reduce((a, i) => a + i.rating, 0) / ratedItems.length).toFixed(1)
     : '0.0';
   const totalMovieMin = movies.length * 105;
-  const totalEpisodesEst = series.length * 12;
+  const totalEpisodesEst = series.reduce((sum, item) => {
+    if (item.watchedEpisodes && typeof item.watchedEpisodes === 'object') {
+      const count = Object.values(item.watchedEpisodes).reduce((s, eps) => s + (Array.isArray(eps) ? eps.length : 0), 0);
+      if (count > 0) return sum + count;
+    }
+    return sum + 12;
+  }, 0);
   const totalSeriesMin = totalEpisodesEst * 45;
 
   const fmtTime = (min) => {
@@ -658,7 +672,7 @@ export default function Profile({
     { label: 'Film visti', value: movies.length, icon: '🎬' },
     { label: 'Tempo film', value: fmtTime(totalMovieMin), icon: '⏱️' },
     { label: 'Serie viste', value: series.length, icon: '📺' },
-    { label: 'Episodi stimati', value: totalEpisodesEst, icon: '🎞️' },
+    { label: 'Episodi visti', value: totalEpisodesEst, icon: '🎞️' },
     { label: 'Tempo serie', value: fmtTime(totalSeriesMin), icon: '⌛' }
   ];
 
