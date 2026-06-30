@@ -287,7 +287,7 @@ function FullListPage({ items, type, onBack, onSelectCard }) {
     .sort((a, b) => {
       if (sort === 'az')     return a.title.localeCompare(b.title);
       if (sort === 'za')     return b.title.localeCompare(a.title);
-      if (sort === 'rating') return b.rating - a.rating;
+      if (sort === 'rating') return (b.rating ?? 0) - (a.rating ?? 0);
       if (sort === 'oldest') return new Date(a.watchDate) - new Date(b.watchDate);
       return new Date(b.watchDate) - new Date(a.watchDate); // 'recent'
     });
@@ -327,7 +327,7 @@ function FullListPage({ items, type, onBack, onSelectCard }) {
                     ? <img src={item.poster} alt={item.title} className="card-image" onError={e => { e.target.style.opacity = '0.2'; }}/>
                     : <div className="card-image" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg-input)', fontSize: '2.5rem' }}>{type === 'movie' ? '🎬' : '📺'}</div>
                   }
-                  <div className="rating-pill"><span>★ {item.rating.toFixed(1)}</span></div>
+                  <div className="rating-pill"><span>★ {item.rating !== null && item.rating !== undefined ? item.rating.toFixed(1) : 'N/D'}</span></div>
                 </div>
                 <div className="card-info">
                   <div className="card-title" title={item.title}>{item.title}</div>
@@ -399,7 +399,7 @@ function MediaSection({ items, type, onSelectCard, onSeeAll }) {
                     background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)',
                     borderRadius: '10px', padding: '2px 7px', fontSize: '0.72rem', fontWeight: 700, color: 'var(--accent-orange)'
                   }}>
-                    ★ {item.rating.toFixed(1)}
+                    ★ {item.rating !== null && item.rating !== undefined ? item.rating.toFixed(1) : 'N/D'}
                   </div>
                   {/* Platform badge */}
                   <div style={{

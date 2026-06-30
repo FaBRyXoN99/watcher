@@ -801,8 +801,14 @@ export default function DetailsModal({
             {loggedInfo && (
               <button className="dm-watched-bar" onClick={() => setShowLogPopup(true)} title="Modifica log">
                 <span className="dm-wb-stars">
-                  {'★'.repeat(Math.floor(loggedInfo.rating))}{loggedInfo.rating % 1 >= 0.5 ? '½' : ''}
-                  <span className="dm-wb-rating-num">{loggedInfo.rating.toFixed(1)}</span>
+                  {loggedInfo.rating !== null && loggedInfo.rating !== undefined ? (
+                    <>
+                      {'★'.repeat(Math.floor(loggedInfo.rating))}{loggedInfo.rating % 1 >= 0.5 ? '½' : ''}
+                      <span className="dm-wb-rating-num">{loggedInfo.rating.toFixed(1)}</span>
+                    </>
+                  ) : (
+                    <span className="dm-wb-rating-num">N/D</span>
+                  )}
                 </span>
                 <span className="dm-wb-divider"/>
                 <PlatformIcon value={loggedInfo.platform} size={26}/>

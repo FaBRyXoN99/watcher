@@ -201,7 +201,7 @@ export default function App() {
           setTimeout(() => {
             setCollections(prev => {
               const updated = [newCollection, ...(prev || [])];
-              localStorage.setItem(`watcher_collections_${activeProfile.id}`, JSON.stringify(updated));
+              localStorage.setItem(`watcher_profile_${activeProfile.id}_collections`, JSON.stringify(updated));
               return updated;
             });
             setNotification({ message: `Collezione "${newCollection.name}" importata!`, type: 'success' });
